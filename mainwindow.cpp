@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
+#include "windowsutils.h"
 #include <QRegularExpression>
 #include <QTableWidgetItem>
 #include <QTimer>
@@ -7,7 +8,17 @@
 #include <QDateTime>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+    , m_windowsUtils(new WindowsUtils(this))
+    , m_pingTimer(nullptr)
+    , m_tracerouteTimer(nullptr)
+    , m_scanTimer(nullptr)
+    , m_pingCount(0)
+    , m_tracerouteHop(0)
+    , m_currentScanPort(0)
+    , m_scanEndPort(0)
+    , m_openPortsFound(0)
 {
     ui->setupUi(this);
 
@@ -160,48 +171,164 @@ void MainWindow::on_optionsButton_clicked()
     ui->contentStackedWidget->setCurrentWidget(ui->optionsPage);
 }
 
-// Cleaner tab slots
 void MainWindow::on_scanQuickButton_clicked()
 {
-    ui->quickCleanResults->setPlainText("Scanning for junk files...\n• Temporary files: 245 MB\n• Browser cache: 156 MB\n• System logs: 45 MB\n\nTotal: 446 MB");
-    ui->spaceSavedLabel->setText("Total space to be freed: 446 MB");
+    ui->scanQuickButton->setEnabled(false);
+    ui->scanQuickButton->setText("Scanning...");
+    ui->quickCleanProgressBar->setValue(0);
+    
+    // Simple synchronous scan for now
+    QVector<CleanerItem> scannedItems = m_windowsUtils->scanJunkFiles();
+    
+    qint64 totalSize = 0;
+    QStringList results;
+    results << "Scanning for junk files...\n";
+    
+    for (int i = 0; i < scannedItems.size(); ++i) {
+        const CleanerItem &item = scannedItems[i];
+        if (item.isSafe) {
+            totalSize += item.size;
+            results << QString("• %1: %2").arg(item.name).arg(formatFileSize(item.size));
+        }
+    }
+    
+    results << QString("\nTotal: %1").arg(formatFileSize(totalSize));
+    
+    ui->quickCleanResults->setPlainText(results.join("\n"));
+    ui->spaceSavedLabel->setText(QString("Total space to be freed: %1").arg(formatFileSize(totalSize)));
     ui->cleanQuickButton->setEnabled(true);
     ui->quickCleanProgressBar->setValue(100);
+    ui->scanQuickButton->setEnabled(true);
+    ui->scanQuickButton->setText("Scan Now");
 }
 
 void MainWindow::on_cleanQuickButton_clicked()
 {
-    ui->quickCleanResults->append("\n\nCleaning completed successfully!");
     ui->cleanQuickButton->setEnabled(false);
-    ui->spaceSavedLabel->setText("Total space freed: 446 MB");
+    ui->cleanQuickButton->setText("Cleaning...");
+    
+    // Simple synchronous clean for now
+    QVector<CleanerItem> allSafeItems = m_windowsUtils->scanJunkFiles();
+    qint64 freedSpace = m_windowsUtils->cleanJunkFiles(allSafeItems);
+    
+    ui->quickCleanResults->append(QString("\n\nCleaning completed successfully! Freed %1").arg(formatFileSize(freedSpace)));
+    ui->cleanQuickButton->setEnabled(false);
+    ui->cleanQuickButton->setText("Clean All");
+    ui->spaceSavedLabel->setText(QString("Total space freed: %1").arg(formatFileSize(freedSpace)));
 }
 
 void MainWindow::on_scanSystemButton_clicked()
 {
-    // Update list items with simulated sizes using QRegularExpression
-    QRegularExpression regex("\\(.*\\)");
-    for (int i = 0; i < ui->systemCleanerList->count(); ++i)
-    {
-        QListWidgetItem *item = ui->systemCleanerList->item(i);
-        QString text = item->text();
-        text.replace(regex, "(125 MB)");
-        item->setText(text);
-    }
+    ui->scanSystemButton->setEnabled(false);
+    ui->scanSystemButton->setText("Scanning...");
+    
+    // Simple synchronous scan
+    QVector<CleanerItem> scannedItems = m_windowsUtils->scanJunkFiles();
+    m_currentCleanerItems = scannedItems;
+    
+    updateSystemCleanerList();
+    ui->scanSystemButton->setEnabled(true);
+    ui->scanSystemButton->setText("Scan Selected");
     ui->cleanSystemButton->setEnabled(true);
 }
 
+void MainWindow::updateSystemCleanerList()
+{
+    ui->systemCleanerList->clear();
+    
+    qint64 totalSize = 0;
+    
+    for (int i = 0; i < m_currentCleanerItems.size(); ++i) {
+        const CleanerItem &item = m_currentCleanerItems[i];
+        QString displayText = QString("✅ %1 (%2)").arg(item.name).arg(formatFileSize(item.size));
+        QListWidgetItem *listItem = new QListWidgetItem(displayText);
+        
+        // Store the original item data using QVariant
+        QVariant itemData;
+        itemData.setValue(item);
+        listItem->setData(Qt::UserRole, itemData);
+        
+        // Set selection state
+        listItem->setSelected(item.isSelected);
+        
+        ui->systemCleanerList->addItem(listItem);
+        totalSize += item.size;
+    }
+    
+    // Update total size display
+    ui->spaceSavedLabel->setText(QString("Total space to be freed: %1").arg(formatFileSize(totalSize)));
+}
+
+QString MainWindow::formatFileSize(qint64 bytes)
+{
+    const qint64 KB = 1024;
+    const qint64 MB = KB * 1024;
+    const qint64 GB = MB * 1024;
+    
+    if (bytes >= GB) {
+        return QString("%1 GB").arg(QString::number(bytes / (double)GB, 'f', 1));
+    } else if (bytes >= MB) {
+        return QString("%1 MB").arg(QString::number(bytes / (double)MB, 'f', 1));
+    } else if (bytes >= KB) {
+        return QString("%1 KB").arg(QString::number(bytes / (double)KB, 'f', 1));
+    } else {
+        return QString("%1 bytes").arg(bytes);
+    }
+}
+
+
 void MainWindow::on_cleanSystemButton_clicked()
 {
+    // Get selected items
+    QVector<CleanerItem> itemsToClean;
+    for (int i = 0; i < ui->systemCleanerList->count(); ++i) {
+        QListWidgetItem *listItem = ui->systemCleanerList->item(i);
+        if (listItem->isSelected()) {
+            QVariant itemData = listItem->data(Qt::UserRole);
+            CleanerItem item = itemData.value<CleanerItem>();
+            itemsToClean.append(item);
+        }
+    }
+    
+    if (itemsToClean.isEmpty()) {
+        QMessageBox::information(this, "No Selection", "Please select items to clean.");
+        return;
+    }
+    
+    // Confirm cleaning
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "Confirm Clean", 
+                                 "Are you sure you want to clean the selected items?\nThis action cannot be undone.",
+                                 QMessageBox::Yes | QMessageBox::No);
+    
+    if (reply != QMessageBox::Yes) {
+        return;
+    }
+    
     ui->cleanSystemButton->setEnabled(false);
+    ui->cleanSystemButton->setText("Cleaning...");
+    
+    // Simple synchronous clean
+    qint64 freedSpace = m_windowsUtils->cleanJunkFiles(itemsToClean);
+    
+    ui->cleanSystemButton->setEnabled(false);
+    ui->cleanSystemButton->setText("Clean Selected");
+    ui->spaceSavedLabel->setText(QString("Total space freed: %1").arg(formatFileSize(freedSpace)));
+    
+    // Rescan to show updated sizes
+    on_scanSystemButton_clicked();
+    
+    QMessageBox::information(this, "Clean Completed", 
+                           QString("Successfully cleaned %1 of disk space.").arg(formatFileSize(freedSpace)));
 }
 
 void MainWindow::on_selectAllSystemButton_clicked()
 {
-    for (int i = 0; i < ui->systemCleanerList->count(); ++i)
-    {
+    for (int i = 0; i < ui->systemCleanerList->count(); ++i) {
         ui->systemCleanerList->item(i)->setSelected(true);
     }
 }
+
 
 void MainWindow::on_scanBrowsersButton_clicked()
 {
