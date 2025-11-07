@@ -61,5 +61,63 @@ private:
     void on_startupTable_itemSelectionChanged();
     void on_saveSettingsButton_clicked();
     void on_resetSettingsButton_clicked();
+
+    // WiFi Management slots
+    void on_scanNetworksButton_clicked();
+    void on_refreshNetworksButton_clicked();
+    void on_connectNetworkButton_clicked();
+    void on_disconnectNetworkButton_clicked();
+    void on_networksTable_itemSelectionChanged();
+    void on_enableAdapterButton_clicked();
+    void on_disableAdapterButton_clicked();
+    void on_refreshAdaptersButton_clicked();
+    void on_adaptersList_itemSelectionChanged();
+    void on_runDiagnosticsButton_clicked();
+    void on_resetNetworkButton_clicked(); // Make sure this matches
+    void on_flushDnsButton_clicked();
+    void on_restartWifiServiceButton_clicked();
+    void on_renewIpButton_clicked();
+    void on_forgetNetworkButton_clicked();
+    void on_driverUpdateButton_clicked();
+
+    // Apps page slots
+    void on_addAppButton_clicked();
+    void on_refreshAppsButton_clicked();
+    void on_launchAppButton_clicked();
+    void on_removeAppButton_clicked();
+    void on_searchAppsInput_textChanged(const QString &text);
+
+    // Options page slots
+    void on_checkUpdatesButton_clicked();
+    void on_exportSettingsButton_clicked();
+    void on_importSettingsButton_clicked();
+    // Options page slots
+    void on_pushButton_saveSettings_clicked();
+    void on_pushButton_resetSettings_clicked();
+    void on_pushButton_checkUpdates_clicked();
+    void on_pushButton_refreshNetwork_clicked();
+    void on_pushButton_testConnection_clicked();
+    void on_pushButton_startPing_clicked();
+    void on_pushButton_stopPing_clicked();
+    void simulatePing();
+    void on_pushButton_startTraceroute_clicked();
+    // Hardware page slots
+    void on_pushButton_refreshHardware_clicked();
+    void on_pushButton_exportHardware_clicked();
+
+    void on_pushButton_stopTraceroute_clicked();
+    void simulateTraceroute();
+    void on_pushButton_startScan_clicked();
+    void simulatePortScan();
+    void on_pushButton_stopScan_clicked();
+
+    QTimer *m_pingTimer;
+    QTimer *m_tracerouteTimer;
+    QTimer *m_scanTimer;
+    int m_pingCount;
+    int m_tracerouteHop;
+    int m_currentScanPort;
+    int m_scanEndPort;
+    int m_openPortsFound;
 };
 #endif // MAINWINDOW_H

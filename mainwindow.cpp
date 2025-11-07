@@ -2,19 +2,21 @@
 #include "./ui_mainwindow.h"
 #include <QRegularExpression>
 #include <QTableWidgetItem>
+#include <QTimer>
+#include <QMessageBox>
+#include <QDateTime>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+    : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    
+
     // Set window properties
     setWindowTitle("Raptor PC Controller");
     setMinimumSize(1000, 700);
-    
+
     setupConnections();
-    
+
     // Set initial active button (General)
     on_generalButton_clicked();
 }
@@ -26,14 +28,13 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupConnections()
 {
-    // Note: Most connections are now auto-connected via Qt's naming convention
-    // Additional manual connections can be added here if needed
+    // Note: Most connections are auto-connected via Qt's naming convention
 }
 
 void MainWindow::resetAllButtons()
 {
     // Reset all buttons to default style
-    QString defaultStyle = 
+    QString defaultStyle =
         "QPushButton {"
         "    background-color: transparent;"
         "    color: white;"
@@ -58,12 +59,12 @@ void MainWindow::resetAllButtons()
     ui->optionsButton->setStyleSheet(defaultStyle);
 }
 
-void MainWindow::setActiveButton(QPushButton* activeButton)
+void MainWindow::setActiveButton(QPushButton *activeButton)
 {
     resetAllButtons();
-    
+
     // Set active button style with green background
-    QString activeStyle = 
+    QString activeStyle =
         "QPushButton {"
         "    background-color: #1abc9c;"
         "    color: white;"
@@ -79,7 +80,7 @@ void MainWindow::setActiveButton(QPushButton* activeButton)
     activeButton->setStyleSheet(activeStyle);
 }
 
-void MainWindow::updateContent(const QString& title)
+void MainWindow::updateContent(const QString &title)
 {
     ui->titleLabel->setText(title);
 }
@@ -90,18 +91,59 @@ void MainWindow::showCleanerPage()
 }
 
 // Main navigation slots
+void MainWindow::on_generalButton_clicked()
+{
+    setActiveButton(ui->generalButton);
+    updateContent("General Settings");
+    ui->contentStackedWidget->setCurrentWidget(ui->generalPage);
+
+    // Populate startup programs table
+    if (ui->startupTable->rowCount() == 0)
+    {
+        QStringList startupPrograms = {
+            "Microsoft OneDrive", "Spotify", "Adobe Creative Cloud",
+            "Discord", "Steam Client", "NVIDIA Control Panel",
+            "Realtek Audio", "Windows Security", "Google Update"};
+
+        QStringList impacts = {"Low", "Medium", "High", "Low", "Medium", "Low", "Low", "Low", "Low"};
+        QStringList types = {"Registry", "Startup Folder", "Service", "Registry", "Registry", "Service", "Service", "Service", "Scheduled Task"};
+
+        for (int i = 0; i < startupPrograms.size(); ++i)
+        {
+            int row = ui->startupTable->rowCount();
+            ui->startupTable->insertRow(row);
+
+            ui->startupTable->setItem(row, 0, new QTableWidgetItem(startupPrograms[i]));
+
+            QTableWidgetItem *statusItem = new QTableWidgetItem("Enabled");
+            statusItem->setForeground(QBrush(QColor("#2ecc71")));
+            ui->startupTable->setItem(row, 1, statusItem);
+
+            ui->startupTable->setItem(row, 2, new QTableWidgetItem(impacts[i]));
+            ui->startupTable->setItem(row, 3, new QTableWidgetItem(types[i]));
+        }
+        ui->startupTable->resizeColumnsToContents();
+    }
+}
+
 void MainWindow::on_wifiButton_clicked()
 {
     setActiveButton(ui->wifiButton);
     updateContent("WiFi Management");
-    ui->contentStackedWidget->setCurrentWidget(ui->welcomePage);
+    ui->contentStackedWidget->setCurrentWidget(ui->wifiPage);
 }
 
 void MainWindow::on_appsButton_clicked()
 {
     setActiveButton(ui->appsButton);
-    updateContent("Applications");
-    ui->contentStackedWidget->setCurrentWidget(ui->welcomePage);
+    updateContent("Favorite Apps");
+    ui->contentStackedWidget->setCurrentWidget(ui->appsPage);
+
+    // Populate apps on first load
+    if (ui->appsGridLayout->count() == 0)
+    {
+        on_refreshAppsButton_clicked();
+    }
 }
 
 void MainWindow::on_cleanerButton_clicked()
@@ -111,25 +153,11 @@ void MainWindow::on_cleanerButton_clicked()
     showCleanerPage();
 }
 
-void MainWindow::on_networkButton_clicked()
-{
-    setActiveButton(ui->networkButton);
-    updateContent("Network Settings");
-    ui->contentStackedWidget->setCurrentWidget(ui->welcomePage);
-}
-
-void MainWindow::on_hardwareButton_clicked()
-{
-    setActiveButton(ui->hardwareButton);
-    updateContent("Hardware Information");
-    ui->contentStackedWidget->setCurrentWidget(ui->welcomePage);
-}
-
 void MainWindow::on_optionsButton_clicked()
 {
     setActiveButton(ui->optionsButton);
     updateContent("Options & Settings");
-    ui->contentStackedWidget->setCurrentWidget(ui->welcomePage);
+    ui->contentStackedWidget->setCurrentWidget(ui->optionsPage);
 }
 
 // Cleaner tab slots
@@ -152,8 +180,9 @@ void MainWindow::on_scanSystemButton_clicked()
 {
     // Update list items with simulated sizes using QRegularExpression
     QRegularExpression regex("\\(.*\\)");
-    for(int i = 0; i < ui->systemCleanerList->count(); ++i) {
-        QListWidgetItem* item = ui->systemCleanerList->item(i);
+    for (int i = 0; i < ui->systemCleanerList->count(); ++i)
+    {
+        QListWidgetItem *item = ui->systemCleanerList->item(i);
         QString text = item->text();
         text.replace(regex, "(125 MB)");
         item->setText(text);
@@ -168,7 +197,8 @@ void MainWindow::on_cleanSystemButton_clicked()
 
 void MainWindow::on_selectAllSystemButton_clicked()
 {
-    for(int i = 0; i < ui->systemCleanerList->count(); ++i) {
+    for (int i = 0; i < ui->systemCleanerList->count(); ++i)
+    {
         ui->systemCleanerList->item(i)->setSelected(true);
     }
 }
@@ -192,15 +222,20 @@ void MainWindow::on_refreshSoftwareButton_clicked()
 void MainWindow::on_searchSoftwareInput_textChanged(const QString &searchText)
 {
     // Simple search filter
-    if (searchText.isEmpty()) {
+    if (searchText.isEmpty())
+    {
         // Show all items
-        for (int i = 0; i < ui->softwareTable->rowCount(); ++i) {
+        for (int i = 0; i < ui->softwareTable->rowCount(); ++i)
+        {
             ui->softwareTable->setRowHidden(i, false);
         }
-    } else {
+    }
+    else
+    {
         // Hide non-matching items
-        for (int i = 0; i < ui->softwareTable->rowCount(); ++i) {
-            QTableWidgetItem* item = ui->softwareTable->item(i, 0); // Name column
+        for (int i = 0; i < ui->softwareTable->rowCount(); ++i)
+        {
+            QTableWidgetItem *item = ui->softwareTable->item(i, 0); // Name column
             bool match = item && item->text().contains(searchText, Qt::CaseInsensitive);
             ui->softwareTable->setRowHidden(i, !match);
         }
@@ -209,22 +244,24 @@ void MainWindow::on_searchSoftwareInput_textChanged(const QString &searchText)
 
 void MainWindow::on_softwareTable_itemSelectionChanged()
 {
-    QList<QTableWidgetItem*> selectedItems = ui->softwareTable->selectedItems();
+    QList<QTableWidgetItem *> selectedItems = ui->softwareTable->selectedItems();
     bool hasSelection = !selectedItems.isEmpty();
-    
+
     ui->uninstallSoftwareButton->setEnabled(hasSelection);
     ui->forceUninstallButton->setEnabled(hasSelection);
-    
-    if (hasSelection) {
+
+    if (hasSelection)
+    {
         int row = ui->softwareTable->currentRow();
         QString name = ui->softwareTable->item(row, 0)->text();
         QString version = ui->softwareTable->item(row, 1)->text();
         QString size = ui->softwareTable->item(row, 2)->text();
-        
+
         ui->selectedSoftwareInfo->setText(
-            QString("Selected: %1 %2 (%3)").arg(name).arg(version).arg(size)
-        );
-    } else {
+            QString("Selected: %1 %2 (%3)").arg(name).arg(version).arg(size));
+    }
+    else
+    {
         ui->selectedSoftwareInfo->setText("No software selected");
     }
 }
@@ -233,11 +270,11 @@ void MainWindow::on_uninstallSoftwareButton_clicked()
 {
     // Placeholder for uninstall functionality
     int row = ui->softwareTable->currentRow();
-    if (row >= 0) {
+    if (row >= 0)
+    {
         QString softwareName = ui->softwareTable->item(row, 0)->text();
         ui->selectedSoftwareInfo->setText(
-            QString("Would uninstall: %1 (normal mode)").arg(softwareName)
-        );
+            QString("Would uninstall: %1 (normal mode)").arg(softwareName));
     }
 }
 
@@ -245,11 +282,11 @@ void MainWindow::on_forceUninstallButton_clicked()
 {
     // Placeholder for force uninstall functionality
     int row = ui->softwareTable->currentRow();
-    if (row >= 0) {
+    if (row >= 0)
+    {
         QString softwareName = ui->softwareTable->item(row, 0)->text();
         ui->selectedSoftwareInfo->setText(
-            QString("Would force uninstall: %1").arg(softwareName)
-        );
+            QString("Would force uninstall: %1").arg(softwareName));
     }
 }
 
@@ -257,40 +294,196 @@ void MainWindow::populateSoftwareTable()
 {
     // Clear existing items
     ui->softwareTable->setRowCount(0);
-    
+
     // Add sample data - in real implementation, this would query the system
     QStringList sampleSoftware = {
         "Google Chrome", "Mozilla Firefox", "Microsoft Edge", "Visual Studio Code",
-        "Adobe Reader", "VLC Media Player", "7-Zip", "WinRAR", "Spotify", "Discord"
-    };
-    
+        "Adobe Reader", "VLC Media Player", "7-Zip", "WinRAR", "Spotify", "Discord"};
+
     QStringList versions = {
         "96.0.4664.110", "95.0.2", "96.0.1054.62", "1.63.0",
-        "2021.011.20039", "3.0.16", "21.07", "6.02", "1.1.68.610", "1.0.9003"
-    };
-    
+        "2021.011.20039", "3.0.16", "21.07", "6.02", "1.1.68.610", "1.0.9003"};
+
     QStringList sizes = {
         "350 MB", "280 MB", "320 MB", "450 MB",
-        "650 MB", "85 MB", "2.5 MB", "3.1 MB", "180 MB", "140 MB"
-    };
-    
+        "650 MB", "85 MB", "2.5 MB", "3.1 MB", "180 MB", "140 MB"};
+
     QStringList dates = {
         "2023-11-15", "2023-11-10", "2023-11-20", "2023-11-05",
-        "2023-10-28", "2023-11-12", "2023-09-15", "2023-10-20", "2023-11-18", "2023-11-22"
-    };
-    
-    for (int i = 0; i < sampleSoftware.size(); ++i) {
+        "2023-10-28", "2023-11-12", "2023-09-15", "2023-10-20", "2023-11-18", "2023-11-22"};
+
+    for (int i = 0; i < sampleSoftware.size(); ++i)
+    {
         int row = ui->softwareTable->rowCount();
         ui->softwareTable->insertRow(row);
-        
+
         ui->softwareTable->setItem(row, 0, new QTableWidgetItem(sampleSoftware[i]));
         ui->softwareTable->setItem(row, 1, new QTableWidgetItem(versions[i]));
         ui->softwareTable->setItem(row, 2, new QTableWidgetItem(sizes[i]));
         ui->softwareTable->setItem(row, 3, new QTableWidgetItem(dates[i]));
     }
-    
+
     // Resize columns to content
     ui->softwareTable->resizeColumnsToContents();
+}
+
+// Apps page slots
+void MainWindow::on_addAppButton_clicked()
+{
+    // Placeholder for adding app functionality
+    ui->appsLabel->setText("Add App dialog would open here to browse for applications");
+}
+
+void MainWindow::on_refreshAppsButton_clicked()
+{
+    // Clear existing apps
+    QLayoutItem *item;
+    while ((item = ui->appsGridLayout->takeAt(0)) != nullptr)
+    {
+        delete item->widget();
+        delete item;
+    }
+
+    // Sample favorite apps with emojis
+    QVector<QPair<QString, QString>> apps = {
+        {"🌐 Chrome", "Web Browser"},
+        {"📝 VS Code", "Code Editor"},
+        {"🎵 Spotify", "Music Player"},
+        {"💬 Discord", "Chat App"},
+        {"🖼️ Photoshop", "Image Editor"},
+        {"📊 Excel", "Spreadsheet"},
+        {"🎮 Steam", "Game Platform"},
+        {"📧 Outlook", "Email Client"},
+        {"📁 Explorer", "File Manager"},
+        {"🎥 VLC", "Media Player"},
+        {"📚 Adobe Reader", "PDF Viewer"},
+        {"⚙️ Settings", "System Settings"}};
+
+    int row = 0;
+    int col = 0;
+    const int maxCols = 4;
+
+    for (const auto &app : apps)
+    {
+        QPushButton *appButton = new QPushButton();
+        appButton->setFixedSize(80, 90);
+        appButton->setStyleSheet(
+            "QPushButton {"
+            "    background-color: white;"
+            "    border: 2px solid #ecf0f1;"
+            "    border-radius: 10px;"
+            "    padding: 5px;"
+            "}"
+            "QPushButton:hover {"
+            "    border-color: #1abc9c;"
+            "    background-color: #f1f8f6;"
+            "}"
+            "QPushButton:pressed {"
+            "    background-color: #1abc9c;"
+            "    color: white;"
+            "}");
+
+        QVBoxLayout *buttonLayout = new QVBoxLayout(appButton);
+        buttonLayout->setSpacing(5);
+        buttonLayout->setContentsMargins(5, 5, 5, 5);
+
+        QLabel *iconLabel = new QLabel(app.first.split(' ')[0]); // Get emoji part
+        iconLabel->setAlignment(Qt::AlignCenter);
+        iconLabel->setStyleSheet("font-size: 24px; background: transparent;");
+
+        QLabel *nameLabel = new QLabel(app.first.split(' ')[1]); // Get name part
+        nameLabel->setAlignment(Qt::AlignCenter);
+        nameLabel->setStyleSheet(
+            "font-size: 9px;"
+            "color: #2c3e50;"
+            "background: transparent;"
+            "font-weight: bold;");
+
+        QLabel *descLabel = new QLabel(app.second);
+        descLabel->setAlignment(Qt::AlignCenter);
+        descLabel->setStyleSheet(
+            "font-size: 7px;"
+            "color: #7f8c8d;"
+            "background: transparent;");
+
+        buttonLayout->addWidget(iconLabel);
+        buttonLayout->addWidget(nameLabel);
+        buttonLayout->addWidget(descLabel);
+
+        // Connect button click
+        connect(appButton, &QPushButton::clicked, this, [this, app]()
+                {
+            ui->selectedAppName->setText(app.first);
+            ui->selectedAppPath->setText(app.second);
+            ui->selectedAppIcon->setText(app.first.split(' ')[0]);
+            ui->launchAppButton->setEnabled(true);
+            ui->removeAppButton->setEnabled(true); });
+
+        ui->appsGridLayout->addWidget(appButton, row, col);
+
+        col++;
+        if (col >= maxCols)
+        {
+            col = 0;
+            row++;
+        }
+    }
+
+    // Add stretch to push items to top
+    ui->appsGridLayout->setRowStretch(row + 1, 1);
+    ui->appsGridLayout->setColumnStretch(maxCols, 1);
+}
+
+void MainWindow::on_launchAppButton_clicked()
+{
+    QString appName = ui->selectedAppName->text();
+    if (appName != "No app selected")
+    {
+        ui->appsLabel->setText(QString("Launching: %1").arg(appName));
+        // In real implementation, this would launch the actual application
+    }
+}
+
+void MainWindow::on_removeAppButton_clicked()
+{
+    QString appName = ui->selectedAppName->text();
+    if (appName != "No app selected")
+    {
+        ui->appsLabel->setText(QString("Removed from favorites: %1").arg(appName));
+        ui->selectedAppName->setText("No app selected");
+        ui->selectedAppPath->setText("Select an app to view details");
+        ui->selectedAppIcon->setText("🚀");
+        ui->launchAppButton->setEnabled(false);
+        ui->removeAppButton->setEnabled(false);
+    }
+}
+
+void MainWindow::on_searchAppsInput_textChanged(const QString &searchText)
+{
+    // Simple search functionality
+    for (int i = 0; i < ui->appsGridLayout->count(); ++i)
+    {
+        QWidget *widget = ui->appsGridLayout->itemAt(i)->widget();
+        if (widget)
+        {
+            QPushButton *appButton = qobject_cast<QPushButton *>(widget);
+            if (appButton)
+            {
+                // Get the app name from the button's layout
+                QVBoxLayout *layout = qobject_cast<QVBoxLayout *>(appButton->layout());
+                if (layout && layout->itemAt(1))
+                {
+                    QLabel *nameLabel = qobject_cast<QLabel *>(layout->itemAt(1)->widget());
+                    if (nameLabel)
+                    {
+                        bool match = searchText.isEmpty() ||
+                                     nameLabel->text().contains(searchText, Qt::CaseInsensitive);
+                        appButton->setVisible(match);
+                    }
+                }
+            }
+        }
+    }
 }
 
 // General tab slots
@@ -300,7 +493,7 @@ void MainWindow::on_refreshSystemInfoButton_clicked()
     ui->cpuUsageProgress->setValue(rand() % 100);
     ui->ramUsageProgress->setValue(rand() % 100);
     ui->diskUsageProgress->setValue(rand() % 100);
-    
+
     ui->cpuUsageValue->setText(QString("%1%").arg(ui->cpuUsageProgress->value()));
     ui->ramUsageValue->setText(QString("%1%").arg(ui->ramUsageProgress->value()));
     ui->diskUsageValue->setText(QString("%1%").arg(ui->diskUsageProgress->value()));
@@ -316,9 +509,11 @@ void MainWindow::on_disableStartupButton_clicked()
 {
     // Placeholder for disabling startup program
     int row = ui->startupTable->currentRow();
-    if (row >= 0) {
-        QTableWidgetItem* statusItem = ui->startupTable->item(row, 1);
-        if (statusItem && statusItem->text() == "Enabled") {
+    if (row >= 0)
+    {
+        QTableWidgetItem *statusItem = ui->startupTable->item(row, 1);
+        if (statusItem && statusItem->text() == "Enabled")
+        {
             statusItem->setText("Disabled");
             statusItem->setForeground(QBrush(QColor("#e74c3c")));
         }
@@ -329,9 +524,11 @@ void MainWindow::on_enableStartupButton_clicked()
 {
     // Placeholder for enabling startup program
     int row = ui->startupTable->currentRow();
-    if (row >= 0) {
-        QTableWidgetItem* statusItem = ui->startupTable->item(row, 1);
-        if (statusItem && statusItem->text() == "Disabled") {
+    if (row >= 0)
+    {
+        QTableWidgetItem *statusItem = ui->startupTable->item(row, 1);
+        if (statusItem && statusItem->text() == "Disabled")
+        {
             statusItem->setText("Enabled");
             statusItem->setForeground(QBrush(QColor("#2ecc71")));
         }
@@ -340,71 +537,618 @@ void MainWindow::on_enableStartupButton_clicked()
 
 void MainWindow::on_startupTable_itemSelectionChanged()
 {
-    QList<QTableWidgetItem*> selectedItems = ui->startupTable->selectedItems();
+    QList<QTableWidgetItem *> selectedItems = ui->startupTable->selectedItems();
     bool hasSelection = !selectedItems.isEmpty();
-    
-    if (hasSelection) {
+
+    if (hasSelection)
+    {
         int row = ui->startupTable->currentRow();
-        QTableWidgetItem* statusItem = ui->startupTable->item(row, 1);
+        QTableWidgetItem *statusItem = ui->startupTable->item(row, 1);
         bool isEnabled = statusItem && statusItem->text() == "Enabled";
-        
+
         ui->disableStartupButton->setEnabled(isEnabled);
         ui->enableStartupButton->setEnabled(!isEnabled);
-    } else {
+    }
+    else
+    {
         ui->disableStartupButton->setEnabled(false);
         ui->enableStartupButton->setEnabled(false);
     }
 }
 
-void MainWindow::on_saveSettingsButton_clicked()
+// WiFi Management slots
+void MainWindow::on_scanNetworksButton_clicked()
 {
-    // Placeholder for saving settings
-    ui->preferencesLabel->setText("Settings saved successfully!");
-}
+    ui->diagnosticsOutput->setPlainText("Scanning for available WiFi networks...\n\nFound 8 networks:");
+    ui->networksTable->setRowCount(0);
 
-void MainWindow::on_resetSettingsButton_clicked()
-{
-    // Placeholder for resetting settings
-    ui->themeComboBox->setCurrentIndex(0);
-    ui->languageComboBox->setCurrentIndex(0);
-    ui->startMinimizedCheckbox->setChecked(false);
-    ui->autoUpdateCheckbox->setChecked(true);
-    ui->backupSettingsCheckbox->setChecked(true);
-    ui->notificationsCheckbox->setChecked(true);
-    ui->preferencesLabel->setText("Settings reset to defaults!");
-}
+    // Sample network data
+    QStringList networks = {"HomeWiFi_5G", "Office_Network", "Guest_WiFi", "TP-Link_2.4G",
+                            "NETGEAR_68", "XfinityWifi", "AndroidAP", "Starbucks_Free"};
+    QStringList signalStrengths = {"Excellent", "Good", "Fair", "Good", "Excellent", "Weak", "Fair", "Weak"};
+    QStringList security = {"WPA2", "WPA3", "WPA2", "WPA2", "WPA3", "Open", "WPA2", "Open"};
+    QStringList bands = {"5 GHz", "5 GHz", "2.4 GHz", "2.4 GHz", "5 GHz", "2.4 GHz", "2.4 GHz", "2.4 GHz"};
+    QStringList channels = {"36", "149", "6", "11", "44", "1", "3", "9"};
 
-// Also update the on_generalButton_clicked() method to show the general page:
-void MainWindow::on_generalButton_clicked()
-{
-    setActiveButton(ui->generalButton);
-    updateContent("General Settings");
-    ui->contentStackedWidget->setCurrentWidget(ui->generalPage);
-    
-    // Populate startup programs table
-    if (ui->startupTable->rowCount() == 0) {
-        QStringList startupPrograms = {
-            "Microsoft OneDrive", "Spotify", "Adobe Creative Cloud", 
-            "Discord", "Steam Client", "NVIDIA Control Panel", 
-            "Realtek Audio", "Windows Security", "Google Update"
-        };
-        
-        QStringList impacts = {"Low", "Medium", "High", "Low", "Medium", "Low", "Low", "Low", "Low"};
-        QStringList types = {"Registry", "Startup Folder", "Service", "Registry", "Registry", "Service", "Service", "Service", "Scheduled Task"};
-        
-        for (int i = 0; i < startupPrograms.size(); ++i) {
-            int row = ui->startupTable->rowCount();
-            ui->startupTable->insertRow(row);
-            
-            ui->startupTable->setItem(row, 0, new QTableWidgetItem(startupPrograms[i]));
-            
-            QTableWidgetItem* statusItem = new QTableWidgetItem("Enabled");
-            statusItem->setForeground(QBrush(QColor("#2ecc71")));
-            ui->startupTable->setItem(row, 1, statusItem);
-            
-            ui->startupTable->setItem(row, 2, new QTableWidgetItem(impacts[i]));
-            ui->startupTable->setItem(row, 3, new QTableWidgetItem(types[i]));
-        }
-        ui->startupTable->resizeColumnsToContents();
+    for (int i = 0; i < networks.size(); ++i)
+    {
+        int row = ui->networksTable->rowCount();
+        ui->networksTable->insertRow(row);
+
+        ui->networksTable->setItem(row, 0, new QTableWidgetItem(networks[i]));
+        ui->networksTable->setItem(row, 1, new QTableWidgetItem(signalStrengths[i]));
+        ui->networksTable->setItem(row, 2, new QTableWidgetItem(security[i]));
+        ui->networksTable->setItem(row, 3, new QTableWidgetItem(bands[i]));
+        ui->networksTable->setItem(row, 4, new QTableWidgetItem(channels[i]));
     }
+
+    ui->networksTable->resizeColumnsToContents();
+    ui->wifiStatusLabel->setText("WiFi: Scanning Complete");
+}
+
+void MainWindow::on_refreshNetworksButton_clicked()
+{
+    on_scanNetworksButton_clicked();
+}
+
+void MainWindow::on_connectNetworkButton_clicked()
+{
+    int row = ui->networksTable->currentRow();
+    if (row >= 0)
+    {
+        QString networkName = ui->networksTable->item(row, 0)->text();
+        ui->selectedNetworkInfo->setText(QString("Connecting to: %1").arg(networkName));
+        ui->wifiStatusLabel->setText(QString("WiFi: Connecting to %1").arg(networkName));
+    }
+}
+
+void MainWindow::on_disconnectNetworkButton_clicked()
+{
+    ui->selectedNetworkInfo->setText("Disconnected from current network");
+    ui->wifiStatusLabel->setText("WiFi: Disconnected");
+}
+
+void MainWindow::on_networksTable_itemSelectionChanged()
+{
+    QList<QTableWidgetItem *> selectedItems = ui->networksTable->selectedItems();
+    bool hasSelection = !selectedItems.isEmpty();
+    ui->connectNetworkButton->setEnabled(hasSelection);
+
+    if (hasSelection)
+    {
+        int row = ui->networksTable->currentRow();
+        QString name = ui->networksTable->item(row, 0)->text();
+        QString signal = ui->networksTable->item(row, 1)->text();
+        QString security = ui->networksTable->item(row, 2)->text();
+
+        ui->selectedNetworkInfo->setText(
+            QString("Selected: %1 (%2, %3)").arg(name).arg(signal).arg(security));
+    }
+    else
+    {
+        ui->selectedNetworkInfo->setText("No network selected");
+    }
+}
+
+void MainWindow::on_enableAdapterButton_clicked()
+{
+    ui->adapterStatusValue->setText("Enabled");
+    ui->adapterStatusValue->setStyleSheet("color: #27ae60; font-weight: bold;");
+    ui->enableAdapterButton->setEnabled(false);
+    ui->disableAdapterButton->setEnabled(true);
+}
+
+void MainWindow::on_disableAdapterButton_clicked()
+{
+    ui->adapterStatusValue->setText("Disabled");
+    ui->adapterStatusValue->setStyleSheet("color: #e74c3c; font-weight: bold;");
+    ui->enableAdapterButton->setEnabled(true);
+    ui->disableAdapterButton->setEnabled(false);
+}
+
+void MainWindow::on_refreshAdaptersButton_clicked()
+{
+    // Simulate refreshing adapter list
+    ui->adaptersLabel->setText("Adapter list refreshed successfully!");
+}
+
+void MainWindow::on_adaptersList_itemSelectionChanged()
+{
+    QList<QListWidgetItem *> selectedItems = ui->adaptersList->selectedItems();
+    bool hasSelection = !selectedItems.isEmpty();
+
+    if (hasSelection)
+    {
+        QString adapterName = selectedItems.first()->text();
+        // Remove emoji prefix for display
+        if (adapterName.startsWith("📡 "))
+            adapterName = adapterName.mid(2);
+        else if (adapterName.startsWith("🔵 "))
+            adapterName = adapterName.mid(2);
+        else if (adapterName.startsWith("🔌 "))
+            adapterName = adapterName.mid(2);
+        else if (adapterName.startsWith("🌐 "))
+            adapterName = adapterName.mid(2);
+
+        ui->adapterNameValue->setText(adapterName);
+
+        // Enable/disable buttons based on current status
+        bool isEnabled = (ui->adapterStatusValue->text() == "Enabled");
+        ui->enableAdapterButton->setEnabled(!isEnabled);
+        ui->disableAdapterButton->setEnabled(isEnabled);
+    }
+}
+
+void MainWindow::on_runDiagnosticsButton_clicked()
+{
+    ui->diagnosticsOutput->setPlainText(
+        "Running network diagnostics...\n\n"
+        "✓ WiFi adapter detected and enabled\n"
+        "✓ Driver status: Healthy\n"
+        "✓ Signal strength: Good\n"
+        "✓ Internet connectivity: Available\n"
+        "✓ DNS resolution: Working\n"
+        "✓ Gateway reachable: Yes\n\n"
+        "Diagnostics completed - No issues found!");
+}
+
+void MainWindow::on_resetNetworkButton_clicked()
+{
+    ui->diagnosticsOutput->setPlainText(
+        "Resetting network stack...\n\n"
+        "• Flushing DNS resolver cache... Done\n"
+        "• Renewing IP address... Done\n"
+        "• Resetting Winsock catalog... Done\n"
+        "• Restarting network services... Done\n\n"
+        "Network stack reset completed successfully!");
+}
+
+void MainWindow::on_flushDnsButton_clicked()
+{
+    ui->diagnosticsOutput->setPlainText("DNS cache flushed successfully!");
+}
+
+void MainWindow::on_restartWifiServiceButton_clicked()
+{
+    ui->diagnosticsOutput->setPlainText("WiFi service restarted successfully!");
+}
+
+void MainWindow::on_renewIpButton_clicked()
+{
+    ui->diagnosticsOutput->setPlainText("IP address renewed successfully!");
+}
+
+void MainWindow::on_forgetNetworkButton_clicked()
+{
+    ui->diagnosticsOutput->setPlainText("Selected network forgotten successfully!");
+}
+
+void MainWindow::on_driverUpdateButton_clicked()
+{
+    ui->diagnosticsOutput->setPlainText("Checking for driver updates...\n\nYour WiFi drivers are up to date!");
+}
+
+// Options page slots
+void MainWindow::on_pushButton_saveSettings_clicked()
+{
+    ui->label_optionsTitle->setText("Settings saved successfully!");
+}
+
+void MainWindow::on_pushButton_resetSettings_clicked()
+{
+    // Reset to default values
+    ui->checkBox_startWithWindows->setChecked(true);
+    ui->checkBox_autoUpdate->setChecked(true);
+    ui->checkBox_notifications->setChecked(true);
+    ui->comboBox_theme->setCurrentIndex(2);    // System Default
+    ui->comboBox_language->setCurrentIndex(0); // English
+
+    ui->label_optionsTitle->setText("Settings reset to defaults!");
+}
+
+void MainWindow::on_pushButton_checkUpdates_clicked()
+{
+    ui->label_optionsTitle->setText("Checking for updates... Your software is up to date!");
+}
+
+void MainWindow::on_pushButton_refreshHardware_clicked()
+{
+    // Simulate hardware information gathering
+    QString hardwareInfo;
+    hardwareInfo += "<span style='color:#000000;'>";
+    hardwareInfo += "🖥️ SYSTEM HARDWARE INFORMATION<br>";
+    hardwareInfo += "══════════════════════════════<br><br>";
+
+    // CPU Information
+    hardwareInfo += "🔹 PROCESSOR (CPU)<br>";
+    hardwareInfo += "──────────────────<br>";
+    hardwareInfo += "Intel Core i7-12700K<br>";
+    hardwareInfo += "   Cores: 12 Physical, 20 Logical<br>";
+    hardwareInfo += "   Clock Speed: 3.6 GHz<br><br>";
+
+    // Motherboard Information
+    hardwareInfo += "🔧 MOTHERBOARD<br>";
+    hardwareInfo += "──────────────<br>";
+    hardwareInfo += "ASUS ROG STRIX Z690-A GAMING WIFI<br>";
+    hardwareInfo += "   Version: Rev 1.xx<br><br>";
+
+    // GPU Information
+    hardwareInfo += "🎮 GRAPHICS CARD (GPU)<br>";
+    hardwareInfo += "─────────────────────<br>";
+    hardwareInfo += "NVIDIA GeForce RTX 4070<br>";
+    hardwareInfo += "   VRAM: 12.0 GB<br>";
+    hardwareInfo += "   Driver: 546.17<br>";
+    hardwareInfo += "   Temperature: 42°C<br>";
+    hardwareInfo += "   Utilization: 8%<br><br>";
+
+    // RAM Information
+    hardwareInfo += "💾 MEMORY (RAM)<br>";
+    hardwareInfo += "───────────────<br>";
+    hardwareInfo += "32.0 GB<br>";
+    hardwareInfo += "   Manufacturer: Corsair<br>";
+    hardwareInfo += "   Speed: 3200 MHz<br><br>";
+
+    // Storage Information
+    hardwareInfo += "💿 STORAGE DRIVES<br>";
+    hardwareInfo += "────────────────<br>";
+    hardwareInfo += "   • Samsung SSD 980 PRO 1TB (1.0 TB) [SSD]<br>";
+    hardwareInfo += "   • Seagate Barracuda ST2000DM008 (2.0 TB) [HDD]<br><br>";
+
+    // Network Information
+    hardwareInfo += "🌐 NETWORK ADAPTERS<br>";
+    hardwareInfo += "──────────────────<br>";
+    hardwareInfo += "   • Intel(R) Wi-Fi 6 AX201 160MHz (Ethernet 802.3)<br>";
+    hardwareInfo += "      MAC: AA:BB:CC:DD:EE:FF<br>";
+    hardwareInfo += "   • Realtek PCIe GbE Family Controller (Ethernet 802.3)<br>";
+    hardwareInfo += "      MAC: 11:22:33:44:55:66<br><br>";
+
+    // USB Information
+    hardwareInfo += "🔌 USB DEVICES<br>";
+    hardwareInfo += "──────────────<br>";
+    hardwareInfo += "8 connected USB devices<br><br>";
+
+    hardwareInfo += "⏱️ Last updated: " + QDateTime::currentDateTime().toString("hh:mm:ss AP");
+    hardwareInfo += "</span>";
+
+    ui->textEdit_hardwareInfo->setHtml(hardwareInfo);
+    ui->label_hardwareStatus->setText("Hardware information updated successfully!");
+}
+
+void MainWindow::on_pushButton_exportHardware_clicked()
+{
+    ui->label_hardwareStatus->setText("Hardware report exported to hardware_info.txt");
+}
+
+// Update the on_hardwareButton_clicked() method:
+void MainWindow::on_hardwareButton_clicked()
+{
+    setActiveButton(ui->hardwareButton);
+    updateContent("Hardware Information");
+    ui->contentStackedWidget->setCurrentWidget(ui->hardwarePage);
+
+    // Auto-refresh hardware info when page is opened
+    on_pushButton_refreshHardware_clicked();
+}
+
+void MainWindow::on_pushButton_refreshNetwork_clicked()
+{
+    // Simulate refreshing network status
+    QStringList connectionTypes = {"WiFi", "Ethernet", "Mobile", "Disconnected"};
+    QStringList statuses = {"Connected", "Connecting", "Disconnected", "Limited Access"};
+    QStringList internetAccess = {"Available", "Unavailable", "Limited"};
+
+    int randomType = rand() % connectionTypes.size();
+    int randomStatus = rand() % statuses.size();
+    int randomInternet = rand() % internetAccess.size();
+
+    // Update connection status
+    ui->label_connectionStatusValue->setText(statuses[randomStatus]);
+    ui->label_connectionTypeValue->setText(connectionTypes[randomType]);
+    ui->label_internetAccessValue->setText(internetAccess[randomInternet]);
+
+    // Set color based on status
+    if (statuses[randomStatus] == "Connected")
+    {
+        ui->label_connectionStatusValue->setStyleSheet("color: #27ae60; font-weight: bold;");
+        ui->label_internetAccessValue->setStyleSheet("color: #27ae60; font-weight: bold;");
+    }
+    else if (statuses[randomStatus] == "Limited Access")
+    {
+        ui->label_connectionStatusValue->setStyleSheet("color: #e67e22; font-weight: bold;");
+        ui->label_internetAccessValue->setStyleSheet("color: #e67e22; font-weight: bold;");
+    }
+    else
+    {
+        ui->label_connectionStatusValue->setStyleSheet("color: #e74c3c; font-weight: bold;");
+        ui->label_internetAccessValue->setStyleSheet("color: #e74c3c; font-weight: bold;");
+    }
+
+    // Update IP addresses with random values
+    QString ipv4 = QString("192.168.%1.%2").arg(rand() % 255).arg(rand() % 255);
+    QString ipv6 = QString("2001:db8:%1:%2::%3").arg(rand() % 9999).arg(rand() % 9999).arg(rand() % 9999);
+    QString gateway = QString("192.168.%1.1").arg(rand() % 255);
+
+    ui->label_ipv4Value->setText(ipv4);
+    ui->label_ipv6Value->setText(ipv6);
+    ui->label_gatewayValue->setText(gateway);
+
+    // Random DNS servers
+    QStringList dnsServers = {"8.8.8.8, 8.8.4.4", "1.1.1.1, 1.0.0.1", "9.9.9.9, 149.112.112.112", "208.67.222.222, 208.67.220.220"};
+    ui->label_dnsValue->setText(dnsServers[rand() % dnsServers.size()]);
+
+    // Update SSID if connected via WiFi
+    if (connectionTypes[randomType] == "WiFi")
+    {
+        QStringList ssids = {"HomeWiFi_5G", "Office_Network", "Guest_WiFi", "TP-Link_2.4G"};
+        ui->label_ssidValue->setText(ssids[rand() % ssids.size()]);
+    }
+    else
+    {
+        ui->label_ssidValue->setText("N/A");
+    }
+}
+
+void MainWindow::on_pushButton_testConnection_clicked()
+{
+    ui->textEdit_pingOutput->setPlainText("Testing internet connection...\n");
+
+    // Simulate connection test with delay
+    QTimer::singleShot(1000, this, [this]()
+                       {
+        ui->textEdit_pingOutput->append("✓ DNS resolution: Working");
+        QTimer::singleShot(500, this, [this]() {
+            ui->textEdit_pingOutput->append("✓ Gateway reachable: Yes");
+            QTimer::singleShot(500, this, [this]() {
+                ui->textEdit_pingOutput->append("✓ Internet access: Available");
+                QTimer::singleShot(500, this, [this]() {
+                    ui->textEdit_pingOutput->append("✓ Latency: 24ms");
+                    ui->textEdit_pingOutput->append("\nConnection test completed successfully!");
+                });
+            });
+        }); });
+}
+
+void MainWindow::simulatePing()
+{
+    m_pingCount++;
+    if (m_pingCount > 10)
+    {
+        on_pushButton_stopPing_clicked();
+        return;
+    }
+
+    int latency = 20 + (rand() % 30); // Random latency between 20-50ms
+    int ttl = 64 - m_pingCount;
+
+    QString pingResult = QString("Reply from %1: bytes=32 time=%2ms TTL=%3")
+                             .arg(ui->lineEdit_pingTarget->text())
+                             .arg(latency)
+                             .arg(ttl);
+
+    ui->textEdit_pingOutput->append(pingResult);
+}
+
+void MainWindow::on_pushButton_startPing_clicked()
+{
+    QString target = ui->lineEdit_pingTarget->text();
+    if (target.isEmpty())
+    {
+        target = "google.com";
+        ui->lineEdit_pingTarget->setText(target);
+    }
+
+    ui->textEdit_pingOutput->setPlainText(QString("Pinging %1...\n").arg(target));
+    ui->pushButton_startPing->setEnabled(false);
+    ui->pushButton_stopPing->setEnabled(true);
+
+    // Simulate ping results
+    m_pingTimer = new QTimer(this);
+    m_pingCount = 0;
+    connect(m_pingTimer, &QTimer::timeout, this, &MainWindow::simulatePing);
+    m_pingTimer->start(1000);
+}
+
+void MainWindow::on_pushButton_stopPing_clicked()
+{
+    if (m_pingTimer && m_pingTimer->isActive())
+    {
+        m_pingTimer->stop();
+        m_pingTimer->deleteLater();
+        m_pingTimer = nullptr;
+    }
+
+    ui->textEdit_pingOutput->append("\nPing stopped by user.");
+    ui->pushButton_startPing->setEnabled(true);
+    ui->pushButton_stopPing->setEnabled(false);
+}
+
+void MainWindow::on_pushButton_stopTraceroute_clicked()
+{
+    if (m_tracerouteTimer && m_tracerouteTimer->isActive())
+    {
+        m_tracerouteTimer->stop();
+        m_tracerouteTimer->deleteLater();
+        m_tracerouteTimer = nullptr;
+    }
+
+    ui->textEdit_tracerouteOutput->append("\nTraceroute stopped by user.");
+    ui->pushButton_startTraceroute->setEnabled(true);
+    ui->pushButton_stopTraceroute->setEnabled(false);
+}
+
+void MainWindow::simulateTraceroute()
+{
+    m_tracerouteHop++;
+    if (m_tracerouteHop > 15)
+    {
+        ui->textEdit_tracerouteOutput->append("\nTraceroute completed.");
+        on_pushButton_stopTraceroute_clicked();
+        return;
+    }
+
+    QStringList routers = {
+        "192.168.1.1", "10.0.0.1", "172.16.0.1", "203.0.113.1",
+        "198.51.100.1", "203.0.113.254", "192.0.2.1", "198.18.0.1",
+        "192.88.99.1", "2001:db8::1", "2001:4860:4860::8888"};
+
+    int latency1 = 1 + (rand() % 10);
+    int latency2 = 1 + (rand() % 10);
+    int latency3 = 1 + (rand() % 10);
+
+    QString router = routers[rand() % routers.size()];
+    QString tracerouteResult = QString("%1  %2 ms  %3 ms  %4 ms  %5")
+                                   .arg(m_tracerouteHop, 2)
+                                   .arg(latency1, 2)
+                                   .arg(latency2, 2)
+                                   .arg(latency3, 2)
+                                   .arg(router);
+
+    ui->textEdit_tracerouteOutput->append(tracerouteResult);
+
+    // If we reached the final hop
+    if (m_tracerouteHop == 15)
+    {
+        QString finalResult = QString("15  %1 ms  %2 ms  %3 ms  %4")
+                                  .arg(24, 2)
+                                  .arg(25, 2)
+                                  .arg(23, 2)
+                                  .arg(ui->lineEdit_tracerouteTarget->text());
+        ui->textEdit_tracerouteOutput->append(finalResult);
+    }
+}
+void MainWindow::on_pushButton_startTraceroute_clicked()
+{
+    QString target = ui->lineEdit_tracerouteTarget->text();
+    if (target.isEmpty())
+    {
+        target = "google.com";
+        ui->lineEdit_tracerouteTarget->setText(target);
+    }
+
+    ui->textEdit_tracerouteOutput->setPlainText(QString("Traceroute to %1...\n").arg(target));
+    ui->pushButton_startTraceroute->setEnabled(false);
+    ui->pushButton_stopTraceroute->setEnabled(true);
+
+    // Simulate traceroute results
+    m_tracerouteTimer = new QTimer(this);
+    m_tracerouteHop = 0;
+    connect(m_tracerouteTimer, &QTimer::timeout, this, &MainWindow::simulateTraceroute);
+    m_tracerouteTimer->start(800);
+}
+void MainWindow::on_pushButton_startScan_clicked()
+{
+    QString target = ui->lineEdit_scannerTarget->text();
+    if (target.isEmpty())
+    {
+        target = "localhost";
+        ui->lineEdit_scannerTarget->setText(target);
+    }
+
+    int startPort = ui->spinBox_startPort->value();
+    int endPort = ui->spinBox_endPort->value();
+
+    if (startPort > endPort)
+    {
+        ui->label_scanSummary->setText("Error: Start port cannot be greater than end port");
+        return;
+    }
+
+    ui->tableWidget_scanResults->setRowCount(0);
+    ui->pushButton_startScan->setEnabled(false);
+    ui->pushButton_stopScan->setEnabled(true);
+    ui->progressBar_scan->setValue(0);
+
+    // Simulate port scanning
+    m_scanTimer = new QTimer(this);
+    m_currentScanPort = startPort;
+    m_scanEndPort = endPort;
+    m_openPortsFound = 0;
+
+    connect(m_scanTimer, &QTimer::timeout, this, &MainWindow::simulatePortScan);
+    m_scanTimer->start(50); // Fast simulation
+}
+
+void MainWindow::on_pushButton_stopScan_clicked()
+{
+    if (m_scanTimer && m_scanTimer->isActive())
+    {
+        m_scanTimer->stop();
+        m_scanTimer->deleteLater();
+        m_scanTimer = nullptr;
+    }
+
+    ui->pushButton_startScan->setEnabled(true);
+    ui->pushButton_stopScan->setEnabled(false);
+    ui->progressBar_scan->setValue(100);
+
+    ui->label_scanSummary->setText(
+        QString("Scan stopped. %1 ports scanned, %2 open ports found")
+            .arg(m_currentScanPort - ui->spinBox_startPort->value())
+            .arg(m_openPortsFound));
+}
+
+void MainWindow::simulatePortScan()
+{
+    if (m_currentScanPort > m_scanEndPort)
+    {
+        on_pushButton_stopScan_clicked();
+        ui->label_scanSummary->setText(
+            QString("Scan completed. %1 ports scanned, %2 open ports found")
+                .arg(m_scanEndPort - ui->spinBox_startPort->value() + 1)
+                .arg(m_openPortsFound));
+        return;
+    }
+
+    // Update progress
+    int totalPorts = m_scanEndPort - ui->spinBox_startPort->value() + 1;
+    int progress = ((m_currentScanPort - ui->spinBox_startPort->value()) * 100) / totalPorts;
+    ui->progressBar_scan->setValue(progress);
+
+    // Common open ports with their services
+    QMap<int, QString> commonPorts = {
+        {21, "FTP"}, {22, "SSH"}, {23, "Telnet"}, {25, "SMTP"}, {53, "DNS"}, {80, "HTTP"}, {110, "POP3"}, {143, "IMAP"}, {443, "HTTPS"}, {993, "IMAPS"}, {995, "POP3S"}, {1433, "MSSQL"}, {3306, "MySQL"}, {3389, "RDP"}, {5432, "PostgreSQL"}, {6379, "Redis"}, {27017, "MongoDB"}};
+
+    // Simulate finding open ports (random chance + common ports)
+    bool isOpen = false;
+    QString service = "Unknown";
+
+    if (commonPorts.contains(m_currentScanPort))
+    {
+        // Higher chance for common ports to be "open" in simulation
+        isOpen = (rand() % 100) < 30; // 30% chance
+        service = commonPorts[m_currentScanPort];
+    }
+    else
+    {
+        // Lower chance for other ports
+        isOpen = (rand() % 100) < 5; // 5% chance
+        service = "Unknown";
+    }
+
+    if (isOpen)
+    {
+        m_openPortsFound++;
+        int row = ui->tableWidget_scanResults->rowCount();
+        ui->tableWidget_scanResults->insertRow(row);
+
+        ui->tableWidget_scanResults->setItem(row, 0, new QTableWidgetItem(QString::number(m_currentScanPort)));
+        ui->tableWidget_scanResults->setItem(row, 1, new QTableWidgetItem(service));
+
+        QTableWidgetItem *statusItem = new QTableWidgetItem("Open");
+        statusItem->setForeground(QBrush(QColor("#27ae60")));
+        ui->tableWidget_scanResults->setItem(row, 2, statusItem);
+    }
+
+    m_currentScanPort++;
+}
+
+// Network page slots
+void MainWindow::on_networkButton_clicked()
+{
+    setActiveButton(ui->networkButton);
+    updateContent("Network Tools");
+    ui->contentStackedWidget->setCurrentWidget(ui->networkPage);
+
+    // Auto-refresh network status when page is opened
+    on_pushButton_refreshNetwork_clicked();
 }
