@@ -112,6 +112,8 @@ private:
     QTimer *m_pingTimer;
     QTimer *m_tracerouteTimer;
     QTimer *m_scanTimer;
+        int m_currentScanIndex;
+
     int m_pingCount;
     int m_tracerouteHop;
     int m_currentScanPort;
@@ -131,6 +133,17 @@ private:
     // New methods for cleaner functionality
     void updateSystemCleanerList();
     QString formatFileSize(qint64 bytes);
+
+
+    void onCleanerItemToggled(bool checked);
+
+    void startLazyScan();
+
+    void scanNextItem();
+    void updateCleanerItemDisplay(int index);
+    void updateTotalSizeDisplay();
+
+    void scanQuickNextItem();  // Add this line
 };
 
 #endif // MAINWINDOW_H

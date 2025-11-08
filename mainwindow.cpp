@@ -7,8 +7,11 @@
 #include <QMessageBox>
 #include <QDateTime>
 
+#include <QProcess>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
+    , m_currentScanIndex(0)
     , ui(new Ui::MainWindow)
     , m_windowsUtils(new WindowsUtils(this))
     , m_pingTimer(nullptr)
@@ -171,65 +174,244 @@ void MainWindow::on_optionsButton_clicked()
     ui->contentStackedWidget->setCurrentWidget(ui->optionsPage);
 }
 
+
 void MainWindow::on_scanQuickButton_clicked()
 {
-    ui->scanQuickButton->setEnabled(false);
-    ui->scanQuickButton->setText("Scanning...");
+    ui->quickCleanResults->setPlainText("Scanning for junk files...");
     ui->quickCleanProgressBar->setValue(0);
     
-    // Simple synchronous scan for now
-    QVector<CleanerItem> scannedItems = m_windowsUtils->scanJunkFiles();
+    // Execute PowerShell commands to get actual sizes
+    QProcess process;
     
-    qint64 totalSize = 0;
-    QStringList results;
-    results << "Scanning for junk files...\n";
+    // Get temporary files size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem $env:TEMP -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    double tempSize = process.readAllStandardOutput().trimmed().toDouble();
+    ui->quickCleanProgressBar->setValue(20);
     
-    for (int i = 0; i < scannedItems.size(); ++i) {
-        const CleanerItem &item = scannedItems[i];
-        if (item.isSafe) {
+    // Get Windows Update cache size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem 'C:\\Windows\\Temp' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    double updateSize = process.readAllStandardOutput().trimmed().toDouble();
+    ui->quickCleanProgressBar->setValue(40);
+    
+    // Get system log files size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem 'C:\\Windows\\Logs' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    double logSize = process.readAllStandardOutput().trimmed().toDouble();
+    ui->quickCleanProgressBar->setValue(60);
+    
+    // Get memory dump files size
+    process.start("powershell", QStringList() << "-Command" << "((Get-ChildItem 'C:\\Windows\\*.dmp' -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum + (Get-ChildItem 'C:\\Windows\\LiveKernelReports\\*.dmp' -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum) / 1MB");
+    process.waitForFinished();
+    double dumpSize = process.readAllStandardOutput().trimmed().toDouble();
+    ui->quickCleanProgressBar->setValue(80);
+    
+    // Get thumbnail cache size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem \"$env:LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\thumbcache_*.db\" -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    double thumbSize = process.readAllStandardOutput().trimmed().toDouble();
+    
+    // Get prefetch files size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem 'C:\\Windows\\Prefetch\\*.pf' -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    double prefetchSize = process.readAllStandardOutput().trimmed().toDouble();
+    ui->quickCleanProgressBar->setValue(100);
+    
+    double totalSize = tempSize + updateSize + logSize + dumpSize + thumbSize + prefetchSize;
+    
+    QString results = QString("Scanning for junk files...\n\n"
+                             "• Temporary Files: %1 MB\n"
+                             "• Windows Update Cache: %2 MB\n"
+                             "• System Log Files: %3 MB\n"
+                             "• Memory Dump Files: %4 MB\n"
+                             "• Thumbnail Cache: %5 MB\n"
+                             "• Prefetch Files: %6 MB\n\n"
+                             "Total: %7 MB")
+                             .arg(tempSize, 0, 'f', 1)
+                             .arg(updateSize, 0, 'f', 1)
+                             .arg(logSize, 0, 'f', 1)
+                             .arg(dumpSize, 0, 'f', 1)
+                             .arg(thumbSize, 0, 'f', 1)
+                             .arg(prefetchSize, 0, 'f', 1)
+                             .arg(totalSize, 0, 'f', 1);
+    
+    ui->quickCleanResults->setPlainText(results);
+    ui->spaceSavedLabel->setText(QString("Total space to be freed: %1 MB").arg(totalSize, 0, 'f', 1));
+    ui->cleanQuickButton->setEnabled(true);
+}
+
+void MainWindow::scanQuickNextItem()
+{
+    if (m_currentScanIndex >= m_currentCleanerItems.size()) {
+        // Scanning complete
+        m_scanTimer->stop();
+        
+        // Calculate total size
+        qint64 totalSize = 0;
+        for (const CleanerItem &item : m_currentCleanerItems) {
             totalSize += item.size;
-            results << QString("• %1: %2").arg(item.name).arg(formatFileSize(item.size));
         }
+        
+        // Update final results
+        ui->spaceSavedLabel->setText(QString("Total space to be freed: %1").arg(formatFileSize(totalSize)));
+        ui->cleanQuickButton->setEnabled(true);
+        ui->quickCleanProgressBar->setValue(100);
+        ui->scanQuickButton->setEnabled(true);
+        ui->scanQuickButton->setText("Scan Now");
+        
+        return;
     }
     
-    results << QString("\nTotal: %1").arg(formatFileSize(totalSize));
+    // Scan just one item
+    CleanerItem &item = m_currentCleanerItems[m_currentScanIndex];
+    item.size = m_windowsUtils->calculateFolderSize(item.path);
     
-    ui->quickCleanResults->setPlainText(results.join("\n"));
-    ui->spaceSavedLabel->setText(QString("Total space to be freed: %1").arg(formatFileSize(totalSize)));
-    ui->cleanQuickButton->setEnabled(true);
-    ui->quickCleanProgressBar->setValue(100);
-    ui->scanQuickButton->setEnabled(true);
-    ui->scanQuickButton->setText("Scan Now");
+    // Update progress bar
+    int progress = ((m_currentScanIndex + 1) * 100) / m_currentCleanerItems.size();
+    ui->quickCleanProgressBar->setValue(progress);
+    
+    // Update results text
+    QString currentResults = ui->quickCleanResults->toPlainText();
+    if (m_currentScanIndex == 0) {
+        currentResults = "Scanning for junk files...\n\n";
+    }
+    
+    currentResults += QString("• %1: %2\n").arg(item.name).arg(formatFileSize(item.size));
+    ui->quickCleanResults->setPlainText(currentResults);
+    
+    // Scroll to bottom
+    QTextCursor cursor = ui->quickCleanResults->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    ui->quickCleanResults->setTextCursor(cursor);
+    
+    m_currentScanIndex++;
 }
 
 void MainWindow::on_cleanQuickButton_clicked()
 {
+    ui->quickCleanResults->append("\n\nCleaning in progress...");
     ui->cleanQuickButton->setEnabled(false);
-    ui->cleanQuickButton->setText("Cleaning...");
+    ui->quickCleanProgressBar->setValue(0);
+
+    QProcess process;
+    QStringList output;
+
+    // 1. Clean Temporary Files more aggressively
+    process.start("powershell", QStringList() << "-Command" << 
+        "Get-ChildItem -Path $env:TEMP -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "
+        "try { Remove-Item $_.FullName -Force -ErrorAction Stop; Write-Output \"Removed: $($_.FullName)\" } "
+        "catch { Write-Warning \"Failed to remove: $($_.FullName)\" } "
+        "}");
+    process.waitForFinished();
+    output << "Temporary Files: " + QString(process.readAllStandardOutput());
+    ui->quickCleanProgressBar->setValue(20);
+
+    // 2. Clean Windows Temp with admin privileges attempt
+    process.start("powershell", QStringList() << "-Command" << 
+        "Get-ChildItem -Path 'C:\\Windows\\Temp' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { "
+        "$_.CreationTime -lt (Get-Date).AddDays(-1) } | ForEach-Object { "
+        "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+    process.waitForFinished();
+    ui->quickCleanProgressBar->setValue(40);
+
+    // 3. Clean Memory Dump Files
+    process.start("powershell", QStringList() << "-Command" << 
+        "Get-ChildItem -Path 'C:\\Windows\\*.dmp' -ErrorAction SilentlyContinue | ForEach-Object { "
+        "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }; "
+        "Get-ChildItem -Path 'C:\\Windows\\LiveKernelReports\\*.dmp' -ErrorAction SilentlyContinue | ForEach-Object { "
+        "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+    process.waitForFinished();
+    ui->quickCleanProgressBar->setValue(60);
+
+    // 4. Clean Thumbnail Cache (this requires Explorer restart)
+    process.start("powershell", QStringList() << "-Command" << 
+        "Stop-Process -Name 'explorer' -Force -ErrorAction SilentlyContinue; "
+        "Start-Sleep -Seconds 2; "
+        "Get-ChildItem -Path '$env:LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\thumbcache_*.db' -ErrorAction SilentlyContinue | ForEach-Object { "
+        "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }; "
+        "Start-Process 'explorer.exe'");
+    process.waitForFinished();
+    ui->quickCleanProgressBar->setValue(80);
+
+    // 5. Clean Prefetch Files (only old ones)
+    process.start("powershell", QStringList() << "-Command" << 
+        "Get-ChildItem -Path 'C:\\Windows\\Prefetch\\*.pf' -ErrorAction SilentlyContinue | Where-Object { "
+        "$_.LastWriteTime -lt (Get-Date).AddDays(-7) } | ForEach-Object { "
+        "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+    process.waitForFinished();
+    ui->quickCleanProgressBar->setValue(100);
+
+    ui->quickCleanResults->append("Cleaning completed! Rescanning to verify...");
+    ui->spaceSavedLabel->setText("Cleaning process finished");
+
+    // Rescan after a delay to show new sizes
+    QTimer::singleShot(3000, this, &MainWindow::on_scanQuickButton_clicked);
+}
+
+void MainWindow::scanNextItem()
+{
+    if (m_currentScanIndex >= m_currentCleanerItems.size()) {
+        // Scanning complete
+        m_scanTimer->stop();
+        ui->scanSystemButton->setEnabled(true);
+        ui->scanSystemButton->setText("Scan Selected");
+        ui->cleanSystemButton->setEnabled(true);
+        return;
+    }
+
+    // Scan just one item
+    CleanerItem &item = m_currentCleanerItems[m_currentScanIndex];
+    item.size = m_windowsUtils->calculateFolderSize(item.path);
+
+    // Update the UI for this specific item
+    updateCleanerItemDisplay(m_currentScanIndex);
+
+    m_currentScanIndex++;
+}
+
+void MainWindow::startLazyScan()
+{
+    // Get the list of items to scan (but don't scan yet)
+    m_currentCleanerItems = m_windowsUtils->getCleanerItemsTemplate();
+    m_currentScanIndex = 0;
     
-    // Simple synchronous clean for now
-    QVector<CleanerItem> allSafeItems = m_windowsUtils->scanJunkFiles();
-    qint64 freedSpace = m_windowsUtils->cleanJunkFiles(allSafeItems);
+    // Start timer for lazy scanning
+    if (!m_scanTimer) {
+        m_scanTimer = new QTimer(this);
+        connect(m_scanTimer, &QTimer::timeout, this, &MainWindow::scanNextItem);
+    }
     
-    ui->quickCleanResults->append(QString("\n\nCleaning completed successfully! Freed %1").arg(formatFileSize(freedSpace)));
-    ui->cleanQuickButton->setEnabled(false);
-    ui->cleanQuickButton->setText("Clean All");
-    ui->spaceSavedLabel->setText(QString("Total space freed: %1").arg(formatFileSize(freedSpace)));
+    m_scanTimer->start(100); // Scan one item every 100ms
 }
 
 void MainWindow::on_scanSystemButton_clicked()
 {
     ui->scanSystemButton->setEnabled(false);
     ui->scanSystemButton->setText("Scanning...");
+
+    // Start lazy scanning
+    startLazyScan();
+}
+
+
+
+void MainWindow::updateCleanerItemDisplay(int index)
+{
+    if (index < 0 || index >= ui->systemCleanerList->count()) return;
     
-    // Simple synchronous scan
-    QVector<CleanerItem> scannedItems = m_windowsUtils->scanJunkFiles();
-    m_currentCleanerItems = scannedItems;
+    QListWidgetItem *listItem = ui->systemCleanerList->item(index);
+    QWidget *widget = ui->systemCleanerList->itemWidget(listItem);
+    if (widget) {
+        QCheckBox *checkBox = widget->findChild<QCheckBox*>();
+        if (checkBox) {
+            const CleanerItem &item = m_currentCleanerItems[index];
+            checkBox->setText(QString("%1 (%2)").arg(item.name).arg(formatFileSize(item.size)));
+        }
+    }
     
-    updateSystemCleanerList();
-    ui->scanSystemButton->setEnabled(true);
-    ui->scanSystemButton->setText("Scan Selected");
-    ui->cleanSystemButton->setEnabled(true);
+    // Update total size
+    updateTotalSizeDisplay();
 }
 
 void MainWindow::updateSystemCleanerList()
@@ -240,18 +422,33 @@ void MainWindow::updateSystemCleanerList()
     
     for (int i = 0; i < m_currentCleanerItems.size(); ++i) {
         const CleanerItem &item = m_currentCleanerItems[i];
-        QString displayText = QString("✅ %1 (%2)").arg(item.name).arg(formatFileSize(item.size));
-        QListWidgetItem *listItem = new QListWidgetItem(displayText);
         
-        // Store the original item data using QVariant
+        // Create a widget with checkbox and label
+        QWidget *itemWidget = new QWidget();
+        QHBoxLayout *layout = new QHBoxLayout(itemWidget);
+        layout->setContentsMargins(5, 2, 5, 2);
+        
+        QCheckBox *checkBox = new QCheckBox();
+        checkBox->setChecked(item.isSelected);
+        checkBox->setText(QString("%1 (%2)").arg(item.name).arg(formatFileSize(item.size)));
+        
+        // Store the CleanerItem data in the checkbox
         QVariant itemData;
         itemData.setValue(item);
-        listItem->setData(Qt::UserRole, itemData);
+        checkBox->setProperty("cleanerItem", itemData);
         
-        // Set selection state
-        listItem->setSelected(item.isSelected);
+        // Connect checkbox changes
+        connect(checkBox, &QCheckBox::toggled, this, &MainWindow::onCleanerItemToggled);
+        
+        layout->addWidget(checkBox);
+        layout->addStretch();
+        
+        QListWidgetItem *listItem = new QListWidgetItem();
+        listItem->setSizeHint(itemWidget->sizeHint());
         
         ui->systemCleanerList->addItem(listItem);
+        ui->systemCleanerList->setItemWidget(listItem, itemWidget);
+        
         totalSize += item.size;
     }
     
@@ -1278,4 +1475,38 @@ void MainWindow::on_networkButton_clicked()
 
     // Auto-refresh network status when page is opened
     on_pushButton_refreshNetwork_clicked();
+}
+
+void MainWindow::onCleanerItemToggled(bool checked)
+{
+    QCheckBox *checkBox = qobject_cast<QCheckBox*>(sender());
+    if (checkBox) {
+        QVariant itemData = checkBox->property("cleanerItem");
+        if (itemData.isValid()) {
+            CleanerItem item = itemData.value<CleanerItem>();
+            item.isSelected = checked;
+            
+            // Update the item in our current list
+            for (int i = 0; i < m_currentCleanerItems.size(); ++i) {
+                if (m_currentCleanerItems[i].name == item.name) {
+                    m_currentCleanerItems[i].isSelected = checked;
+                    break;
+                }
+            }
+            
+            // Update total size display
+            updateTotalSizeDisplay();
+        }
+    }
+}
+
+void MainWindow::updateTotalSizeDisplay()
+{
+    qint64 totalSize = 0;
+    for (const CleanerItem &item : m_currentCleanerItems) {
+        if (item.isSelected) {
+            totalSize += item.size;
+        }
+    }
+    ui->spaceSavedLabel->setText(QString("Total space to be freed: %1").arg(formatFileSize(totalSize)));
 }

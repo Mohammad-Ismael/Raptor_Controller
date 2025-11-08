@@ -1,15 +1,21 @@
 #include "mainwindow.h"
-
 #include <QApplication>
+#include "cleaneritem.h"  // Include the common header
+
+// Register CleanerItem type for QVariant
+Q_DECLARE_METATYPE(CleanerItem)
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    
+    // Register the type
+    qRegisterMetaType<CleanerItem>();
+    
     MainWindow w;
     w.show();
     return a.exec();
-}
-#include "mainwindow.h"
+}#include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "windowsutils.h"
 #include <QRegularExpression>
@@ -20,6 +26,7 @@ int main(int argc, char *argv[])
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
+    , m_currentScanIndex(0)
     , ui(new Ui::MainWindow)
     , m_windowsUtils(new WindowsUtils(this))
     , m_pingTimer(nullptr)
@@ -182,65 +189,164 @@ void MainWindow::on_optionsButton_clicked()
     ui->contentStackedWidget->setCurrentWidget(ui->optionsPage);
 }
 
+
 void MainWindow::on_scanQuickButton_clicked()
 {
     ui->scanQuickButton->setEnabled(false);
     ui->scanQuickButton->setText("Scanning...");
     ui->quickCleanProgressBar->setValue(0);
+    ui->quickCleanResults->setPlainText("Scanning for junk files...\n");
     
-    // Simple synchronous scan for now
-    QVector<CleanerItem> scannedItems = m_windowsUtils->scanJunkFiles();
+    // Get the template items (without sizes)
+    m_currentCleanerItems = m_windowsUtils->getCleanerItemsTemplate();
+    m_currentScanIndex = 0;
     
-    qint64 totalSize = 0;
-    QStringList results;
-    results << "Scanning for junk files...\n";
-    
-    for (int i = 0; i < scannedItems.size(); ++i) {
-        const CleanerItem &item = scannedItems[i];
-        if (item.isSafe) {
-            totalSize += item.size;
-            results << QString("• %1: %2").arg(item.name).arg(formatFileSize(item.size));
-        }
+    // Start lazy scanning
+    if (!m_scanTimer) {
+        m_scanTimer = new QTimer(this);
+        connect(m_scanTimer, &QTimer::timeout, this, &MainWindow::scanQuickNextItem);
     }
     
-    results << QString("\nTotal: %1").arg(formatFileSize(totalSize));
+    m_scanTimer->start(50); // Scan one item every 50ms for smooth progress
+}
+
+void MainWindow::scanQuickNextItem()
+{
+    if (m_currentScanIndex >= m_currentCleanerItems.size()) {
+        // Scanning complete
+        m_scanTimer->stop();
+        
+        // Calculate total size
+        qint64 totalSize = 0;
+        for (const CleanerItem &item : m_currentCleanerItems) {
+            totalSize += item.size;
+        }
+        
+        // Update final results
+        ui->spaceSavedLabel->setText(QString("Total space to be freed: %1").arg(formatFileSize(totalSize)));
+        ui->cleanQuickButton->setEnabled(true);
+        ui->quickCleanProgressBar->setValue(100);
+        ui->scanQuickButton->setEnabled(true);
+        ui->scanQuickButton->setText("Scan Now");
+        
+        return;
+    }
     
-    ui->quickCleanResults->setPlainText(results.join("\n"));
-    ui->spaceSavedLabel->setText(QString("Total space to be freed: %1").arg(formatFileSize(totalSize)));
-    ui->cleanQuickButton->setEnabled(true);
-    ui->quickCleanProgressBar->setValue(100);
-    ui->scanQuickButton->setEnabled(true);
-    ui->scanQuickButton->setText("Scan Now");
+    // Scan just one item
+    CleanerItem &item = m_currentCleanerItems[m_currentScanIndex];
+    item.size = m_windowsUtils->calculateFolderSize(item.path);
+    
+    // Update progress bar
+    int progress = ((m_currentScanIndex + 1) * 100) / m_currentCleanerItems.size();
+    ui->quickCleanProgressBar->setValue(progress);
+    
+    // Update results text
+    QString currentResults = ui->quickCleanResults->toPlainText();
+    if (m_currentScanIndex == 0) {
+        currentResults = "Scanning for junk files...\n\n";
+    }
+    
+    currentResults += QString("• %1: %2\n").arg(item.name).arg(formatFileSize(item.size));
+    ui->quickCleanResults->setPlainText(currentResults);
+    
+    // Scroll to bottom
+    QTextCursor cursor = ui->quickCleanResults->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    ui->quickCleanResults->setTextCursor(cursor);
+    
+    m_currentScanIndex++;
 }
 
 void MainWindow::on_cleanQuickButton_clicked()
 {
     ui->cleanQuickButton->setEnabled(false);
     ui->cleanQuickButton->setText("Cleaning...");
+    ui->quickCleanProgressBar->setValue(0);
     
-    // Simple synchronous clean for now
-    QVector<CleanerItem> allSafeItems = m_windowsUtils->scanJunkFiles();
-    qint64 freedSpace = m_windowsUtils->cleanJunkFiles(allSafeItems);
+    // Show cleaning started
+    ui->quickCleanResults->append("\n\nCleaning started...");
     
-    ui->quickCleanResults->append(QString("\n\nCleaning completed successfully! Freed %1").arg(formatFileSize(freedSpace)));
-    ui->cleanQuickButton->setEnabled(false);
-    ui->cleanQuickButton->setText("Clean All");
-    ui->spaceSavedLabel->setText(QString("Total space freed: %1").arg(formatFileSize(freedSpace)));
+    // Use QTimer for non-blocking cleaning
+    QTimer::singleShot(100, this, [this]() {
+        // Clean all safe items
+        qint64 freedSpace = m_windowsUtils->cleanJunkFiles(m_currentCleanerItems);
+        
+        // Update UI
+        ui->quickCleanResults->append(QString("Cleaning completed successfully! Freed %1").arg(formatFileSize(freedSpace)));
+        ui->cleanQuickButton->setEnabled(false);
+        ui->cleanQuickButton->setText("Clean All");
+        ui->spaceSavedLabel->setText(QString("Total space freed: %1").arg(formatFileSize(freedSpace)));
+        ui->quickCleanProgressBar->setValue(100);
+        
+        // Show completion message
+        QMessageBox::information(this, "Clean Completed", 
+                               QString("Successfully cleaned %1 of disk space.").arg(formatFileSize(freedSpace)));
+    });
+}
+
+void MainWindow::scanNextItem()
+{
+    if (m_currentScanIndex >= m_currentCleanerItems.size()) {
+        // Scanning complete
+        m_scanTimer->stop();
+        ui->scanSystemButton->setEnabled(true);
+        ui->scanSystemButton->setText("Scan Selected");
+        ui->cleanSystemButton->setEnabled(true);
+        return;
+    }
+
+    // Scan just one item
+    CleanerItem &item = m_currentCleanerItems[m_currentScanIndex];
+    item.size = m_windowsUtils->calculateFolderSize(item.path);
+
+    // Update the UI for this specific item
+    updateCleanerItemDisplay(m_currentScanIndex);
+
+    m_currentScanIndex++;
+}
+
+void MainWindow::startLazyScan()
+{
+    // Get the list of items to scan (but don't scan yet)
+    m_currentCleanerItems = m_windowsUtils->getCleanerItemsTemplate();
+    m_currentScanIndex = 0;
+    
+    // Start timer for lazy scanning
+    if (!m_scanTimer) {
+        m_scanTimer = new QTimer(this);
+        connect(m_scanTimer, &QTimer::timeout, this, &MainWindow::scanNextItem);
+    }
+    
+    m_scanTimer->start(100); // Scan one item every 100ms
 }
 
 void MainWindow::on_scanSystemButton_clicked()
 {
     ui->scanSystemButton->setEnabled(false);
     ui->scanSystemButton->setText("Scanning...");
+
+    // Start lazy scanning
+    startLazyScan();
+}
+
+
+
+void MainWindow::updateCleanerItemDisplay(int index)
+{
+    if (index < 0 || index >= ui->systemCleanerList->count()) return;
     
-    // Simple synchronous scan
-    QVector<CleanerItem> scannedItems = m_windowsUtils->scanJunkFiles();
-    m_currentCleanerItems = scannedItems;
+    QListWidgetItem *listItem = ui->systemCleanerList->item(index);
+    QWidget *widget = ui->systemCleanerList->itemWidget(listItem);
+    if (widget) {
+        QCheckBox *checkBox = widget->findChild<QCheckBox*>();
+        if (checkBox) {
+            const CleanerItem &item = m_currentCleanerItems[index];
+            checkBox->setText(QString("%1 (%2)").arg(item.name).arg(formatFileSize(item.size)));
+        }
+    }
     
-    updateSystemCleanerList();
-    ui->scanSystemButton->setEnabled(true);
-    ui->scanSystemButton->setText("Scan Selected");
-    ui->cleanSystemButton->setEnabled(true);
+    // Update total size
+    updateTotalSizeDisplay();
 }
 
 void MainWindow::updateSystemCleanerList()
@@ -251,18 +357,33 @@ void MainWindow::updateSystemCleanerList()
     
     for (int i = 0; i < m_currentCleanerItems.size(); ++i) {
         const CleanerItem &item = m_currentCleanerItems[i];
-        QString displayText = QString("✅ %1 (%2)").arg(item.name).arg(formatFileSize(item.size));
-        QListWidgetItem *listItem = new QListWidgetItem(displayText);
         
-        // Store the original item data using QVariant
+        // Create a widget with checkbox and label
+        QWidget *itemWidget = new QWidget();
+        QHBoxLayout *layout = new QHBoxLayout(itemWidget);
+        layout->setContentsMargins(5, 2, 5, 2);
+        
+        QCheckBox *checkBox = new QCheckBox();
+        checkBox->setChecked(item.isSelected);
+        checkBox->setText(QString("%1 (%2)").arg(item.name).arg(formatFileSize(item.size)));
+        
+        // Store the CleanerItem data in the checkbox
         QVariant itemData;
         itemData.setValue(item);
-        listItem->setData(Qt::UserRole, itemData);
+        checkBox->setProperty("cleanerItem", itemData);
         
-        // Set selection state
-        listItem->setSelected(item.isSelected);
+        // Connect checkbox changes
+        connect(checkBox, &QCheckBox::toggled, this, &MainWindow::onCleanerItemToggled);
+        
+        layout->addWidget(checkBox);
+        layout->addStretch();
+        
+        QListWidgetItem *listItem = new QListWidgetItem();
+        listItem->setSizeHint(itemWidget->sizeHint());
         
         ui->systemCleanerList->addItem(listItem);
+        ui->systemCleanerList->setItemWidget(listItem, itemWidget);
+        
         totalSize += item.size;
     }
     
@@ -1289,12 +1410,48 @@ void MainWindow::on_networkButton_clicked()
 
     // Auto-refresh network status when page is opened
     on_pushButton_refreshNetwork_clicked();
-}#include "windowsutils.h"
+}
+
+void MainWindow::onCleanerItemToggled(bool checked)
+{
+    QCheckBox *checkBox = qobject_cast<QCheckBox*>(sender());
+    if (checkBox) {
+        QVariant itemData = checkBox->property("cleanerItem");
+        if (itemData.isValid()) {
+            CleanerItem item = itemData.value<CleanerItem>();
+            item.isSelected = checked;
+            
+            // Update the item in our current list
+            for (int i = 0; i < m_currentCleanerItems.size(); ++i) {
+                if (m_currentCleanerItems[i].name == item.name) {
+                    m_currentCleanerItems[i].isSelected = checked;
+                    break;
+                }
+            }
+            
+            // Update total size display
+            updateTotalSizeDisplay();
+        }
+    }
+}
+
+void MainWindow::updateTotalSizeDisplay()
+{
+    qint64 totalSize = 0;
+    for (const CleanerItem &item : m_currentCleanerItems) {
+        if (item.isSelected) {
+            totalSize += item.size;
+        }
+    }
+    ui->spaceSavedLabel->setText(QString("Total space to be freed: %1").arg(formatFileSize(totalSize)));
+}
+#include "windowsutils.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QDebug>
+#include <QApplication>
 
 WindowsUtils::WindowsUtils(QObject *parent) : QObject(parent)
 {
@@ -1305,12 +1462,12 @@ void WindowsUtils::initializeCleanerItems()
 {
     m_cleanerItems.clear();
     
-    // SAFE locations only for Windows 10/11
+    // SAFE locations only for Windows 10/11 - CORRECTED PATHS
     m_cleanerItems.append({
         "Temporary Files", 
         "Windows and user temporary files",
         getUserTempPath(),
-        {"*.tmp", "*.temp", "*.log", "~*.*", "_*.*"},
+        {"*.*"},  // Scan ALL files recursively
         0,
         true,
         true
@@ -1318,8 +1475,8 @@ void WindowsUtils::initializeCleanerItems()
     
     m_cleanerItems.append({
         "Windows Update Cache", 
-        "Windows Update temporary files",
-        getWindowsTempPath(),
+        "Windows Update temporary files", 
+        "C:/Windows/Temp",
         {"*.*"},
         0,
         true,
@@ -1329,8 +1486,8 @@ void WindowsUtils::initializeCleanerItems()
     m_cleanerItems.append({
         "System Log Files", 
         "System event and error logs",
-        getWindowsLogsPath(),
-        {"*.log", "*.etl", "*.evtx"},
+        "C:/Windows/Logs",
+        {"*.*"},
         0,
         true,
         true
@@ -1339,7 +1496,7 @@ void WindowsUtils::initializeCleanerItems()
     m_cleanerItems.append({
         "Memory Dump Files", 
         "System memory dump files",
-        getMemoryDumpPath(),
+        "C:/Windows",
         {"*.dmp", "*.hdmp"},
         0,
         true,
@@ -1359,7 +1516,7 @@ void WindowsUtils::initializeCleanerItems()
     m_cleanerItems.append({
         "Prefetch Files", 
         "Windows prefetch files",
-        getPrefetchPath(),
+        "C:/Windows/Prefetch", 
         {"*.pf"},
         0,
         true,
@@ -1370,64 +1527,116 @@ void WindowsUtils::initializeCleanerItems()
 QVector<CleanerItem> WindowsUtils::scanJunkFiles()
 {
     QVector<CleanerItem> result;
-    
-    for (int i = 0; i < m_cleanerItems.size(); ++i) {
+
+    for (int i = 0; i < m_cleanerItems.size(); ++i)
+    {
         CleanerItem scannedItem = m_cleanerItems[i];
-        
+
         // Calculate size for this location
         QDir dir(scannedItem.path);
-        if (dir.exists()) {
+        if (dir.exists())
+        {
             scannedItem.size = calculateDirectorySize(dir);
-        } else {
+        }
+        else
+        {
             scannedItem.size = 0;
         }
-        
+
         result.append(scannedItem);
     }
-    
+
     return result;
 }
 
 qint64 WindowsUtils::cleanJunkFiles(const QVector<CleanerItem> &itemsToClean)
 {
     qint64 totalFreed = 0;
-    
-    for (int i = 0; i < itemsToClean.size(); ++i) {
+
+    for (int i = 0; i < itemsToClean.size(); ++i)
+    {
         const CleanerItem &item = itemsToClean[i];
-        if (item.isSelected && item.isSafe) {
+        if (item.isSelected && item.isSafe)
+        {
             qint64 beforeSize = calculateDirectorySize(QDir(item.path));
             deleteFilesByPattern(item.path, item.filePatterns);
             qint64 afterSize = calculateDirectorySize(QDir(item.path));
             totalFreed += (beforeSize - afterSize);
         }
     }
-    
+
     return totalFreed;
 }
 
 qint64 WindowsUtils::calculateFolderSize(const QString &path)
 {
     QDir dir(path);
-    return calculateDirectorySize(dir);
+    if (!dir.exists()) return 0;
+    
+    qint64 size = 0;
+    int processedCount = 0;
+    
+    // Count files in current directory
+    QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
+    for (const QFileInfo &file : files) {
+        size += file.size();
+        processedCount++;
+        
+        // Keep GUI responsive
+        if (processedCount % 100 == 0) {
+            QApplication::processEvents();
+        }
+    }
+    
+    // Recursively count subdirectories - THIS IS WHAT WAS MISSING!
+    QFileInfoList dirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QFileInfo &subDir : dirs) {
+        size += calculateFolderSize(subDir.absoluteFilePath());
+        processedCount++;
+        
+        // Keep GUI responsive
+        if (processedCount % 10 == 0) {
+            QApplication::processEvents();
+        }
+    }
+    
+    return size;
 }
 
 qint64 WindowsUtils::calculateDirectorySize(const QDir &dir)
 {
     qint64 size = 0;
-    
+
     // Calculate file sizes
     QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
-    for (const QFileInfo &file : files) {
+    for (const QFileInfo &file : files)
+    {
         size += file.size();
     }
-    
+
     // Calculate subdirectory sizes
     QFileInfoList dirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const QFileInfo &subDir : dirs) {
+    for (const QFileInfo &subDir : dirs)
+    {
         size += calculateDirectorySize(QDir(subDir.absoluteFilePath()));
     }
-    
+
     return size;
+}
+
+void WindowsUtils::deleteAllFilesRecursive(const QDir &dir)
+{
+    // Delete all files in current directory
+    QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
+    for (const QFileInfo &file : files) {
+        QFile::remove(file.absoluteFilePath());
+    }
+
+    // Recursively delete files in subdirectories
+    QFileInfoList dirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QFileInfo &subDir : dirs) {
+        deleteAllFilesRecursive(QDir(subDir.absoluteFilePath()));
+    }
 }
 
 void WindowsUtils::deleteFilesByPattern(const QString &path, const QStringList &patterns)
@@ -1435,7 +1644,14 @@ void WindowsUtils::deleteFilesByPattern(const QString &path, const QStringList &
     QDir dir(path);
     if (!dir.exists()) return;
     
-    // Delete files matching patterns
+    // If patterns is "*.*", scan all files recursively
+    if (patterns.contains("*.*")) {
+        // Recursively delete all files in this directory and subdirectories
+        deleteAllFilesRecursive(dir);
+        return;
+    }
+    
+    // For specific patterns, use the existing logic
     for (int i = 0; i < patterns.size(); ++i) {
         const QString &pattern = patterns[i];
         QFileInfoList files = dir.entryInfoList(QStringList() << pattern, 
@@ -1445,30 +1661,18 @@ void WindowsUtils::deleteFilesByPattern(const QString &path, const QStringList &
             QFile::remove(file.absoluteFilePath());
         }
     }
-    
-    // Clean empty subdirectories (safe operation)
-    QFileInfoList dirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (int i = 0; i < dirs.size(); ++i) {
-        const QFileInfo &subDir = dirs[i];
-        QString subDirPath = subDir.absoluteFilePath();
-        QDir subDirObj(subDirPath);
-        
-        // Only delete if directory is empty
-        if (subDirObj.entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty()) {
-            subDirObj.removeRecursively();
-        }
-    }
 }
 
-// Windows-specific path getters
+
+
 QString WindowsUtils::getWindowsTempPath() const
 {
-    return QDir::cleanPath(QDir::tempPath() + "/.."); // Go to main Temp directory
+    return "C:/Windows/Temp";  // Fixed - was going to wrong location
 }
 
 QString WindowsUtils::getUserTempPath() const
 {
-    return QDir::tempPath();
+    return QDir::tempPath();  // This should be correct
 }
 
 QString WindowsUtils::getPrefetchPath() const
@@ -1482,6 +1686,7 @@ QString WindowsUtils::getThumbnailCachePath() const
     return QDir::cleanPath(localAppData + "/../Local/Microsoft/Windows/Explorer");
 }
 
+
 QString WindowsUtils::getWindowsLogsPath() const
 {
     return "C:/Windows/Logs";
@@ -1490,7 +1695,57 @@ QString WindowsUtils::getWindowsLogsPath() const
 QString WindowsUtils::getMemoryDumpPath() const
 {
     return "C:/Windows";
-}#ifndef MAINWINDOW_H
+}
+
+QVector<CleanerItem> WindowsUtils::getCleanerItemsTemplate() const
+{
+    return m_cleanerItems; // Return the template without sizes
+}
+
+qint64 WindowsUtils::calculateFolderSizeQuick(const QString &path)
+{
+    QDir dir(path);
+    if (!dir.exists())
+        return 0;
+
+    qint64 size = 0;
+
+    // Only count immediate files (don't recurse into subdirectories)
+    // This makes it much faster and non-blocking
+    QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
+
+    for (const QFileInfo &file : files)
+    {
+        size += file.size();
+
+        // Process events every 50 files to keep GUI responsive
+        static int fileCount = 0;
+        fileCount++;
+        if (fileCount % 50 == 0)
+        {
+            QApplication::processEvents();
+        }
+    }
+
+    return size;
+}
+#ifndef CLEANERITEM_H
+#define CLEANERITEM_H
+
+#include <QString>
+#include <QStringList>
+
+struct CleanerItem {
+    QString name;
+    QString description;
+    QString path;
+    QStringList filePatterns;
+    qint64 size;
+    bool isSafe;
+    bool isSelected;
+};
+
+#endif // CLEANERITEM_H#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
@@ -1503,6 +1758,7 @@ QString WindowsUtils::getMemoryDumpPath() const
 #include <QMessageBox>
 #include <QDateTime>
 #include <QVector>
+#include "cleaneritem.h"  // Include the common header
 
 // Forward declaration to avoid including windowsutils.h in header
 class WindowsUtils;
@@ -1512,17 +1768,6 @@ namespace Ui {
 class MainWindow;
 }
 QT_END_NAMESPACE
-
-// Simple struct definition in header
-struct CleanerItem {
-    QString name;
-    QString description;
-    QString path;
-    QStringList filePatterns;
-    qint64 size;
-    bool isSafe;
-    bool isSelected;
-};
 
 class MainWindow : public QMainWindow
 {
@@ -1614,6 +1859,8 @@ private:
     QTimer *m_pingTimer;
     QTimer *m_tracerouteTimer;
     QTimer *m_scanTimer;
+        int m_currentScanIndex;
+
     int m_pingCount;
     int m_tracerouteHop;
     int m_currentScanPort;
@@ -1633,9 +1880,21 @@ private:
     // New methods for cleaner functionality
     void updateSystemCleanerList();
     QString formatFileSize(qint64 bytes);
+
+
+    void onCleanerItemToggled(bool checked);
+
+    void startLazyScan();
+
+    void scanNextItem();
+    void updateCleanerItemDisplay(int index);
+    void updateTotalSizeDisplay();
+
+    void scanQuickNextItem();  // Add this line
 };
 
-#endif // MAINWINDOW_H#ifndef WINDOWSUTILS_H
+#endif // MAINWINDOW_H
+#ifndef WINDOWSUTILS_H
 #define WINDOWSUTILS_H
 
 #include <QObject>
@@ -1643,16 +1902,7 @@ private:
 #include <QVector>
 #include <QStringList>
 #include <QDir>
-
-struct CleanerItem {
-    QString name;
-    QString description;
-    QString path;
-    QStringList filePatterns;
-    qint64 size;
-    bool isSafe;
-    bool isSelected;
-};
+#include "cleaneritem.h" // Include the common header
 
 class WindowsUtils : public QObject
 {
@@ -1660,17 +1910,19 @@ class WindowsUtils : public QObject
 
 public:
     explicit WindowsUtils(QObject *parent = nullptr);
-    
+
     // System Cleaner Methods
     QVector<CleanerItem> scanJunkFiles();
     qint64 cleanJunkFiles(const QVector<CleanerItem> &itemsToClean);
     qint64 calculateFolderSize(const QString &path);
+    QVector<CleanerItem> getCleanerItemsTemplate() const;
+    qint64 calculateFolderSizeQuick(const QString &path);
 
 private:
     void deleteFilesByPattern(const QString &path, const QStringList &patterns);
     qint64 calculateDirectorySize(const QDir &dir);
     void initializeCleanerItems();
-    
+
     // Safe locations for Windows 10/11 cleaning
     QString getWindowsTempPath() const;
     QString getUserTempPath() const;
@@ -1678,8 +1930,9 @@ private:
     QString getThumbnailCachePath() const;
     QString getWindowsLogsPath() const;
     QString getMemoryDumpPath() const;
-    
+
     QVector<CleanerItem> m_cleanerItems;
+    void deleteAllFilesRecursive(const QDir &dir);
 };
 
 #endif // WINDOWSUTILS_H
