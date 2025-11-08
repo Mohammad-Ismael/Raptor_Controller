@@ -24,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("Raptor PC Controller");
     setMinimumSize(1000, 700);
 
-    // Initialize modular managers
+    // Initialize ALL modular managers
     m_systemCleaner = new SystemCleaner(this, this);
     m_networkManager = new NetworkManager(this, this);
     m_hardwareInfo = new HardwareInfo(this, this);
@@ -36,6 +36,37 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Set initial active button (General)
     on_generalButton_clicked();
+    
+    // Setup system cleaner list for click selection
+    connect(ui->systemCleanerList, &QListWidget::itemClicked, this, &MainWindow::onSystemCleanerItemClicked);
+}
+
+// Add this new slot to MainWindow class (add declaration to mainwindow.h too)
+void MainWindow::onSystemCleanerItemClicked(QListWidgetItem *item)
+{
+    if (!item) return;
+    
+    QString text = item->text();
+    
+    // Toggle between checked (✅) and unchecked (❌)
+    if (text.contains("❌")) {
+        text.replace("❌", "✅");
+    } else {
+        text.replace("✅", "❌");
+    }
+    
+    item->setText(text);
+    
+    // Enable/disable clean button based on whether any items are selected
+    bool hasSelected = false;
+    for (int i = 0; i < ui->systemCleanerList->count(); ++i) {
+        if (ui->systemCleanerList->item(i)->text().contains("✅")) {
+            hasSelected = true;
+            break;
+        }
+    }
+    
+    ui->cleanSystemButton->setEnabled(hasSelected);
 }
 
 MainWindow::~MainWindow()
@@ -236,10 +267,47 @@ void MainWindow::on_cleanBrowsersButton_clicked()
 
 void MainWindow::on_selectAllSystemButton_clicked()
 {
-    for (int i = 0; i < ui->systemCleanerList->count(); ++i)
-    {
-        ui->systemCleanerList->item(i)->setSelected(true);
+    QListWidget* systemList = ui->systemCleanerList;
+    if (!systemList) return;
+
+    // Check if any items are currently unselected (have ❌)
+    bool hasUnselected = false;
+    for (int i = 0; i < systemList->count(); ++i) {
+        QListWidgetItem* item = systemList->item(i);
+        if (item && item->text().contains("❌")) {
+            hasUnselected = true;
+            break;
+        }
     }
+
+    // If there are unselected items, select all. Otherwise, deselect all.
+    bool shouldSelect = hasUnselected;
+    
+    for (int i = 0; i < systemList->count(); ++i) {
+        QListWidgetItem* item = systemList->item(i);
+        if (item) {
+            QString text = item->text();
+            if (shouldSelect) {
+                // Select item (replace ❌ with ✅)
+                text.replace("❌", "✅");
+            } else {
+                // Deselect item (replace ✅ with ❌)
+                text.replace("✅", "❌");
+            }
+            item->setText(text);
+        }
+    }
+
+    // Enable/disable clean button based on selection
+    bool hasSelected = false;
+    for (int i = 0; i < systemList->count(); ++i) {
+        if (systemList->item(i)->text().contains("✅")) {
+            hasSelected = true;
+            break;
+        }
+    }
+    
+    ui->cleanSystemButton->setEnabled(hasSelected);
 }
 
 // Software Uninstaller slots - Delegated to SoftwareManager

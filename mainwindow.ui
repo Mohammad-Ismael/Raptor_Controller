@@ -717,7 +717,6 @@
                                                                             background-color:
                                                                             #f8f9fa;
                                                                             }
-
                                                                             QListWidget::item {
                                                                             border-bottom: 1px solid
                                                                             #ecf0f1;
@@ -733,38 +732,76 @@
                                                                     </property>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>✅ Temporary
+                                                                            <string>❌ Temporary
                                                                                 Files (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>✅ Windows Update
+                                                                            <string>❌ Windows Update
                                                                                 Cache (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>✅ System Log
+                                                                            <string>❌ System Log
                                                                                 Files (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>✅ Memory Dump
+                                                                            <string>❌ Memory Dump
                                                                                 Files (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>✅ Thumbnail
+                                                                            <string>❌ Thumbnail
                                                                                 Cache (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>✅ Error Reports
+                                                                            <string>❌ Error Reports
                                                                                 (0 MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Recycle Bin (0
+                                                                                MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Prefetch Files
+                                                                                (0 MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Font Cache (0
+                                                                                MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Delivery
+                                                                                Optimization (0 MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Error
+                                                                                Reporting Archive (0
+                                                                                MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Windows
+                                                                                Defender Scans (0
+                                                                                MB)</string>
                                                                         </property>
                                                                     </item>
                                                                 </widget>

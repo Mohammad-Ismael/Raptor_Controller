@@ -39,6 +39,8 @@ private slots:
     void on_hardwareButton_clicked();
     void on_optionsButton_clicked();
 
+     void onSystemCleanerItemClicked(QListWidgetItem *item);
+
     // Cleaner tab slots
     void on_scanQuickButton_clicked();
     void on_cleanQuickButton_clicked();
