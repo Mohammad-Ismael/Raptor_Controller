@@ -2,19 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QPushButton>
-#include <QTableWidget>
-#include <QListWidget>
-#include <QTextEdit>
-#include <QProgressBar>
-#include <QTimer>
-#include <QMessageBox>
-#include <QDateTime>
+#include <QFuture>
+#include <QtConcurrent/QtConcurrent>
+#include <QFutureWatcher>
 #include <QVector>
-#include "cleaneritem.h"  // Include the common header
-
-// Forward declaration to avoid including windowsutils.h in header
-class WindowsUtils;
+#include <QPushButton>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -31,7 +23,7 @@ public:
     ~MainWindow();
 
 private slots:
-    // Navigation slots
+    // Main navigation slots
     void on_generalButton_clicked();
     void on_wifiButton_clicked();
     void on_appsButton_clicked();
@@ -105,45 +97,41 @@ private slots:
     void on_pushButton_startScan_clicked();
     void on_pushButton_stopScan_clicked();
 
+    // Async scanning slots
+    void onScanFinished();
+    void updateScanProgress(int value);
+
 private:
     Ui::MainWindow *ui;
-    WindowsUtils *m_windowsUtils;
-    QVector<CleanerItem> m_currentCleanerItems;
+
+    // Async scanning members
+    QFutureWatcher<QVector<double>> *m_scanWatcher;
+    QVector<double> m_scanResults;
+    bool m_isScanning;
+
+    // Network tools members
     QTimer *m_pingTimer;
     QTimer *m_tracerouteTimer;
     QTimer *m_scanTimer;
-        int m_currentScanIndex;
-
     int m_pingCount;
     int m_tracerouteHop;
     int m_currentScanPort;
     int m_scanEndPort;
     int m_openPortsFound;
 
+    // Private methods
     void setupConnections();
     void resetAllButtons();
     void setActiveButton(QPushButton *activeButton);
     void updateContent(const QString &title);
     void showCleanerPage();
     void populateSoftwareTable();
+    
+    // Scanning methods
+    static QVector<double> performScan();
     void simulatePing();
     void simulateTraceroute();
     void simulatePortScan();
-    
-    // New methods for cleaner functionality
-    void updateSystemCleanerList();
-    QString formatFileSize(qint64 bytes);
-
-
-    void onCleanerItemToggled(bool checked);
-
-    void startLazyScan();
-
-    void scanNextItem();
-    void updateCleanerItemDisplay(int index);
-    void updateTotalSizeDisplay();
-
-    void scanQuickNextItem();  // Add this line
 };
 
 #endif // MAINWINDOW_H
