@@ -3,6 +3,10 @@
 
 #include <QMainWindow>
 #include <QPushButton>
+#include <QTableWidgetItem>
+#include <QTreeWidgetItem>
+#include <QCompleter>  // Add this line
+
 
 // Include the actual headers instead of forward declarations
 #include "modules/systemcleaner.h"
@@ -11,10 +15,12 @@
 #include "modules/appmanager.h"
 #include "modules/softwaremanager.h"
 #include "modules/wifimanager.h"
+#include "modules/fileschecker.h"
 
 QT_BEGIN_NAMESPACE
-namespace Ui {
-class MainWindow;
+namespace Ui
+{
+    class MainWindow;
 }
 QT_END_NAMESPACE
 
@@ -30,6 +36,18 @@ public:
     Ui::MainWindow *ui;
 
 private slots:
+    void on_largeFilesTable_itemDoubleClicked(QTableWidgetItem *item);  // Add this
+    // Add these to your existing slots
+    void on_filesCheckerButton_clicked();
+    void on_refreshDiskSpaceButton_clicked();
+    void on_scanLargeFilesButton_clicked();
+    void on_openFileLocationButton_clicked();
+    void on_deleteLargeFilesButton_clicked();
+    void on_scanDuplicateFilesButton_clicked();
+    void on_deleteDuplicateFilesButton_clicked();
+    void on_largeFilesTable_itemChanged(QTableWidgetItem *item);
+    void on_duplicateFilesTree_itemChanged(QTreeWidgetItem *item, int column);
+
     // Main navigation slots
     void on_generalButton_clicked();
     void on_wifiButton_clicked();
@@ -39,7 +57,7 @@ private slots:
     void on_hardwareButton_clicked();
     void on_optionsButton_clicked();
 
-     void onSystemCleanerItemClicked(QListWidgetItem *item);
+    void onSystemCleanerItemClicked(QListWidgetItem *item);
 
     // Cleaner tab slots
     void on_scanQuickButton_clicked();
@@ -106,6 +124,13 @@ private slots:
     void on_pushButton_startScan_clicked();
     void on_pushButton_stopScan_clicked();
 
+        void on_cancelLargeFilesButton_clicked();
+    void on_cancelDuplicateFilesButton_clicked();
+    void on_browseLargeFilesPathButton_clicked();
+    void on_browseDuplicateFilesPathButton_clicked();
+    void on_largeFilesPathInput_textChanged(const QString &text);
+    void on_duplicateFilesPathInput_textChanged(const QString &text);
+
 private:
     // Modular managers
     SystemCleaner *m_systemCleaner;
@@ -114,6 +139,7 @@ private:
     AppManager *m_appManager;
     SoftwareManager *m_softwareManager;
     WiFiManager *m_wifiManager;
+    FilesChecker *m_filesChecker;
 
     // Private methods
     void setupConnections();

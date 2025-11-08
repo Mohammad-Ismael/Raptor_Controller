@@ -7,6 +7,7 @@
 #include "modules/softwaremanager.h"
 #include "modules/wifimanager.h"
 
+#include <QFileDialog>
 #include <QRegularExpression>
 #include <QTableWidgetItem>
 #include <QTimer>
@@ -31,41 +32,68 @@ MainWindow::MainWindow(QWidget *parent)
     m_appManager = new AppManager(this, this);
     m_softwareManager = new SoftwareManager(this, this);
     m_wifiManager = new WiFiManager(this, this);
+    m_filesChecker = new FilesChecker(this, this);
+
+    // Add path suggestions for file checker
+    QStringList commonPaths = m_filesChecker->getCommonPaths();
+    QCompleter *pathCompleter = new QCompleter(commonPaths, this);
+    pathCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+
+    ui->largeFilesPathInput->setCompleter(pathCompleter);
+    ui->duplicateFilesPathInput->setCompleter(pathCompleter);
+
+    // Set default paths
+    ui->largeFilesPathInput->setText(QDir::homePath());
+    ui->duplicateFilesPathInput->setText(QDir::homePath());
 
     setupConnections();
 
     // Set initial active button (General)
     on_generalButton_clicked();
-    
-    // Setup system cleaner list for click selection
+
+// Setup system cleaner list for click selection
     connect(ui->systemCleanerList, &QListWidget::itemClicked, this, &MainWindow::onSystemCleanerItemClicked);
+
+    // Also add the connections for the new UI elements
+    connect(ui->largeFilesTable, &QTableWidget::itemChanged, this, &MainWindow::on_largeFilesTable_itemChanged);
+    connect(ui->largeFilesTable, &QTableWidget::itemDoubleClicked, this, &MainWindow::on_largeFilesTable_itemDoubleClicked);  // Add this
+    
+    // Fix: Connect the cancel buttons properly
+    connect(ui->cancelLargeFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelLargeFilesButton_clicked);
+    connect(ui->cancelDuplicateFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelDuplicateFilesButton_clicked);
 }
 
 // Add this new slot to MainWindow class (add declaration to mainwindow.h too)
 void MainWindow::onSystemCleanerItemClicked(QListWidgetItem *item)
 {
-    if (!item) return;
-    
+    if (!item)
+        return;
+
     QString text = item->text();
-    
+
     // Toggle between checked (✅) and unchecked (❌)
-    if (text.contains("❌")) {
+    if (text.contains("❌"))
+    {
         text.replace("❌", "✅");
-    } else {
+    }
+    else
+    {
         text.replace("✅", "❌");
     }
-    
+
     item->setText(text);
-    
+
     // Enable/disable clean button based on whether any items are selected
     bool hasSelected = false;
-    for (int i = 0; i < ui->systemCleanerList->count(); ++i) {
-        if (ui->systemCleanerList->item(i)->text().contains("✅")) {
+    for (int i = 0; i < ui->systemCleanerList->count(); ++i)
+    {
+        if (ui->systemCleanerList->item(i)->text().contains("✅"))
+        {
             hasSelected = true;
             break;
         }
     }
-    
+
     ui->cleanSystemButton->setEnabled(hasSelected);
 }
 
@@ -267,14 +295,17 @@ void MainWindow::on_cleanBrowsersButton_clicked()
 
 void MainWindow::on_selectAllSystemButton_clicked()
 {
-    QListWidget* systemList = ui->systemCleanerList;
-    if (!systemList) return;
+    QListWidget *systemList = ui->systemCleanerList;
+    if (!systemList)
+        return;
 
     // Check if any items are currently unselected (have ❌)
     bool hasUnselected = false;
-    for (int i = 0; i < systemList->count(); ++i) {
-        QListWidgetItem* item = systemList->item(i);
-        if (item && item->text().contains("❌")) {
+    for (int i = 0; i < systemList->count(); ++i)
+    {
+        QListWidgetItem *item = systemList->item(i);
+        if (item && item->text().contains("❌"))
+        {
             hasUnselected = true;
             break;
         }
@@ -282,15 +313,20 @@ void MainWindow::on_selectAllSystemButton_clicked()
 
     // If there are unselected items, select all. Otherwise, deselect all.
     bool shouldSelect = hasUnselected;
-    
-    for (int i = 0; i < systemList->count(); ++i) {
-        QListWidgetItem* item = systemList->item(i);
-        if (item) {
+
+    for (int i = 0; i < systemList->count(); ++i)
+    {
+        QListWidgetItem *item = systemList->item(i);
+        if (item)
+        {
             QString text = item->text();
-            if (shouldSelect) {
+            if (shouldSelect)
+            {
                 // Select item (replace ❌ with ✅)
                 text.replace("❌", "✅");
-            } else {
+            }
+            else
+            {
                 // Deselect item (replace ✅ with ❌)
                 text.replace("✅", "❌");
             }
@@ -300,13 +336,15 @@ void MainWindow::on_selectAllSystemButton_clicked()
 
     // Enable/disable clean button based on selection
     bool hasSelected = false;
-    for (int i = 0; i < systemList->count(); ++i) {
-        if (systemList->item(i)->text().contains("✅")) {
+    for (int i = 0; i < systemList->count(); ++i)
+    {
+        if (systemList->item(i)->text().contains("✅"))
+        {
             hasSelected = true;
             break;
         }
     }
-    
+
     ui->cleanSystemButton->setEnabled(hasSelected);
 }
 
@@ -590,4 +628,227 @@ void MainWindow::on_pushButton_startScan_clicked()
 void MainWindow::on_pushButton_stopScan_clicked()
 {
     m_networkManager->stopPortScan();
+}
+
+// Add the new navigation slot
+void MainWindow::on_filesCheckerButton_clicked()
+{
+    setActiveButton(ui->filesCheckerButton);
+    updateContent("Files Checker");
+    ui->contentStackedWidget->setCurrentWidget(ui->filesCheckerPage);
+
+    // Refresh disk space on first load
+    m_filesChecker->refreshDiskSpace();
+}
+
+// Implement the new slots
+void MainWindow::on_refreshDiskSpaceButton_clicked()
+{
+    m_filesChecker->refreshDiskSpace();
+}
+
+void MainWindow::on_scanLargeFilesButton_clicked()
+{
+    QString path = ui->largeFilesPathInput->text();
+    if (path.isEmpty())
+    {
+        path = QDir::homePath();
+        ui->largeFilesPathInput->setText(path);
+    }
+
+    double minSizeGB = ui->largeFilesSizeSpinBox->value();
+    if (m_filesChecker) {
+        m_filesChecker->scanLargeFiles(path, minSizeGB);
+    }
+}
+
+void MainWindow::on_openFileLocationButton_clicked()
+{
+    // Check if any file is selected
+    bool hasSelection = false;
+    int selectedRow = -1;
+    
+    for (int row = 0; row < ui->largeFilesTable->rowCount(); ++row) {
+        QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+        if (checkItem && checkItem->checkState() == Qt::Checked) {
+            hasSelection = true;
+            selectedRow = row;
+            break;
+        }
+    }
+    
+    if (hasSelection && selectedRow >= 0) {
+        QTableWidgetItem *pathItem = ui->largeFilesTable->item(selectedRow, 1);
+        if (pathItem && m_filesChecker) {
+            QString filePath = pathItem->text();
+            m_filesChecker->openFileDirectory(filePath);
+        }
+    } else {
+        QMessageBox::information(this, "Open Location", "Please select a file first by checking the checkbox.");
+    }
+}
+
+void MainWindow::on_deleteLargeFilesButton_clicked()
+{
+    QVector<FileInfo> filesToDelete;
+
+    for (int row = 0; row < ui->largeFilesTable->rowCount(); ++row) {
+        QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+        QTableWidgetItem *pathItem = ui->largeFilesTable->item(row, 1);
+        QTableWidgetItem *sizeItem = ui->largeFilesTable->item(row, 2);
+
+        if (checkItem && checkItem->checkState() == Qt::Checked && pathItem && sizeItem) {
+            FileInfo fileInfo;
+            fileInfo.path = pathItem->text();
+            
+            // Parse the size from the formatted string
+            QString sizeStr = sizeItem->text();
+            fileInfo.size = 0; // We'll calculate this if needed
+            fileInfo.isSelected = true;
+            filesToDelete.append(fileInfo);
+        }
+    }
+
+    if (filesToDelete.isEmpty()) {
+        QMessageBox::information(this, "Delete Files", "No files selected for deletion.");
+        return;
+    }
+
+    if (m_filesChecker) {
+        m_filesChecker->deleteSelectedFiles(filesToDelete);
+        
+        // Remove deleted rows from the table
+        for (int row = ui->largeFilesTable->rowCount() - 1; row >= 0; --row) {
+            QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+            if (checkItem && checkItem->checkState() == Qt::Checked) {
+                ui->largeFilesTable->removeRow(row);
+            }
+        }
+        
+        // Update the results text
+        ui->largeFilesResults->append(QString("\nDeleted %1 file(s).").arg(filesToDelete.size()));
+    }
+}
+
+void MainWindow::on_scanDuplicateFilesButton_clicked()
+{
+    QString path = ui->duplicateFilesPathInput->text();
+    if (path.isEmpty())
+    {
+        path = QDir::homePath();
+        ui->duplicateFilesPathInput->setText(path);
+    }
+
+    m_filesChecker->scanDuplicateFiles(path);
+}
+
+void MainWindow::on_deleteDuplicateFilesButton_clicked()
+{
+    // Implementation for deleting duplicate files
+    // You'll need to collect selected files from the tree widget
+}
+
+
+void MainWindow::on_duplicateFilesTree_itemChanged(QTreeWidgetItem *item, int column)
+{
+    // Handle selection changes in duplicate files tree
+}
+
+
+void MainWindow::on_browseLargeFilesPathButton_clicked()
+{
+    QString currentPath = ui->largeFilesPathInput->text();
+    if (currentPath.isEmpty())
+    {
+        currentPath = QDir::homePath();
+    }
+
+    QString dir = QFileDialog::getExistingDirectory(this, "Select Directory to Scan", currentPath);
+    if (!dir.isEmpty())
+    {
+        ui->largeFilesPathInput->setText(dir);
+    }
+}
+
+void MainWindow::on_browseDuplicateFilesPathButton_clicked()
+{
+    QString currentPath = ui->duplicateFilesPathInput->text();
+    if (currentPath.isEmpty())
+    {
+        currentPath = QDir::homePath();
+    }
+
+    QString dir = QFileDialog::getExistingDirectory(this, "Select Directory to Scan", currentPath);
+    if (!dir.isEmpty())
+    {
+        ui->duplicateFilesPathInput->setText(dir);
+    }
+}
+
+void MainWindow::on_largeFilesPathInput_textChanged(const QString &text)
+{
+    // Enable/disable scan button based on path validity
+    QDir dir(text);
+    ui->scanLargeFilesButton->setEnabled(dir.exists());
+}
+
+void MainWindow::on_duplicateFilesPathInput_textChanged(const QString &text)
+{
+    // Enable/disable scan button based on path validity
+    QDir dir(text);
+    ui->scanDuplicateFilesButton->setEnabled(dir.exists());
+}
+
+
+void MainWindow::on_cancelLargeFilesButton_clicked()
+{
+    if (m_filesChecker) {
+        m_filesChecker->cancelLargeFilesScan();
+    }
+}
+
+void MainWindow::on_cancelDuplicateFilesButton_clicked()
+{
+    if (m_filesChecker) {
+        m_filesChecker->cancelDuplicateFilesScan();
+    }
+}
+
+void MainWindow::on_largeFilesTable_itemDoubleClicked(QTableWidgetItem *item)
+{
+    if (!item) return;
+    
+    int row = item->row();
+    QTableWidgetItem *pathItem = ui->largeFilesTable->item(row, 1); // Path column
+    
+    if (pathItem && m_filesChecker) {
+        QString filePath = pathItem->text();
+        m_filesChecker->openFileDirectory(filePath);
+    }
+}
+
+void MainWindow::on_largeFilesTable_itemChanged(QTableWidgetItem *item)
+{
+    if (!item) return;
+    
+    if (item->column() == 0) { // Checkbox column
+        // Update the checkbox display with emojis
+        if (item->checkState() == Qt::Checked) {
+            item->setText("✅"); // Checkmark when selected
+        } else {
+            item->setText("❌"); // X when not selected
+        }
+        
+        // Enable/disable delete button based on selection
+        bool hasSelection = false;
+        for (int row = 0; row < ui->largeFilesTable->rowCount(); ++row) {
+            QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+            if (checkItem && checkItem->checkState() == Qt::Checked) {
+                hasSelection = true;
+                break;
+            }
+        }
+        ui->deleteLargeFilesButton->setEnabled(hasSelection);
+        ui->openFileLocationButton->setEnabled(hasSelection);
+    }
 }

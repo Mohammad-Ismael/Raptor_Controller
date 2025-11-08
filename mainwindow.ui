@@ -216,6 +216,35 @@
                                     </property>
                                 </widget>
                             </item>
+                            <!-- Add this in the sidebar after the cleanerButton -->
+                            <item>
+                                <widget class="QPushButton" name="filesCheckerButton">
+                                    <property name="font">
+                                        <font>
+                                            <pointsize>10</pointsize>
+                                        </font>
+                                    </property>
+                                    <property name="styleSheet">
+                                        <string notr="true">QPushButton {
+                                            background-color: transparent;
+                                            color: white;
+                                            border: none;
+                                            padding: 15px 20px;
+                                            text-align: left;
+                                            border-bottom: 1px solid #34495e;
+                                            }
+                                            QPushButton:hover {
+                                            background-color: #34495e;
+                                            }
+                                            QPushButton:pressed {
+                                            background-color: #1abc9c;
+                                            }</string>
+                                    </property>
+                                    <property name="text">
+                                        <string>Files Checker</string>
+                                    </property>
+                                </widget>
+                            </item>
                             <item>
                                 <widget class="QPushButton" name="networkButton">
                                     <property name="font">
@@ -1565,6 +1594,904 @@
                                                                                     selected</string>
                                                                             </property>
                                                                         </widget>
+                                                                    </item>
+                                                                </layout>
+                                                            </item>
+                                                        </layout>
+                                                    </widget>
+                                                </widget>
+                                            </item>
+                                        </layout>
+                                    </widget>
+                                    <!-- Files Checker Page -->
+                                    <widget class="QWidget" name="filesCheckerPage">
+                                        <layout class="QVBoxLayout" name="verticalLayout_33">
+                                            <property name="spacing">
+                                                <number>0</number>
+                                            </property>
+                                            <item>
+                                                <widget class="QTabWidget"
+                                                    name="filesCheckerTabWidget">
+                                                    <property name="font">
+                                                        <font>
+                                                            <pointsize>9</pointsize>
+                                                        </font>
+                                                    </property>
+                                                    <property name="styleSheet">
+                                                        <string notr="true">QTabWidget::pane {
+                                                            border: 1px solid #ecf0f1;
+                                                            background-color: white;
+                                                            }
+
+                                                            QTabWidget::tab-bar {
+                                                            alignment: left;
+                                                            }
+
+                                                            QTabBar::tab {
+                                                            background-color: #ecf0f1;
+                                                            color: #2c3e50;
+                                                            padding: 8px 16px;
+                                                            margin-right: 2px;
+                                                            border: none;
+                                                            }
+
+                                                            QTabBar::tab:selected {
+                                                            background-color: #1abc9c;
+                                                            color: white;
+                                                            }
+
+                                                            QTabBar::tab:hover:!selected {
+                                                            background-color: #bdc3c7;
+                                                            }</string>
+                                                    </property>
+                                                    <property name="tabPosition">
+                                                        <enum>QTabWidget::North</enum>
+                                                    </property>
+                                                    <property name="tabShape">
+                                                        <enum>QTabWidget::Rounded</enum>
+                                                    </property>
+
+                                                    <!-- Disk Space Overview Tab -->
+                                                    <widget class="QWidget" name="diskSpaceTab">
+                                                        <attribute name="title">
+                                                            <string>Disk Space</string>
+                                                        </attribute>
+                                                        <layout class="QVBoxLayout"
+                                                            name="verticalLayout_34">
+                                                            <item>
+                                                                <widget class="QLabel"
+                                                                    name="diskSpaceLabel">
+                                                                    <property name="font">
+                                                                        <font>
+                                                                            <pointsize>11</pointsize>
+                                                                        </font>
+                                                                    </property>
+                                                                    <property name="styleSheet">
+                                                                        <string notr="true">QLabel {
+                                                                            color: #7f8c8d;
+                                                                            padding: 10px;
+                                                                            }</string>
+                                                                    </property>
+                                                                    <property name="text">
+                                                                        <string>Overview of disk
+                                                                            space usage across all
+                                                                            drives. Monitor storage
+                                                                            capacity and free space.</string>
+                                                                    </property>
+                                                                    <property name="alignment">
+                                                                        <set>Qt::AlignCenter</set>
+                                                                    </property>
+                                                                </widget>
+                                                            </item>
+                                                            <item>
+                                                                <widget class="QTextEdit"
+                                                                    name="diskSpaceOverview">
+                                                                    <property name="styleSheet">
+                                                                        <string notr="true">QTextEdit
+                                                                            {
+                                                                            border: 1px solid
+                                                                            #ecf0f1;
+                                                                            border-radius: 5px;
+                                                                            padding: 10px;
+                                                                            background-color:
+                                                                            #f8f9fa;
+                                                                            color: #2c3e50;
+                                                                            font-family: 'Consolas',
+                                                                            'Courier New';
+                                                                            font-size: 10px;
+                                                                            }</string>
+                                                                    </property>
+                                                                    <property name="html">
+                                                                        <string>
+                                        <![CDATA[
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+p, li { white-space: pre-wrap; color: #2c3e50; font-family: 'Consolas', 'Courier New'; font-size: 10px; }
+</style></head><body style=" font-family:'Consolas','Courier New'; font-size:10px; font-weight:400; font-style:normal;">
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Click Refresh to load disk space information...</p></body></html>
+                                        ]]>
+                                    </string>
+                                                                    </property>
+                                                                    <property name="placeholderText">
+                                                                        <string>Disk space
+                                                                            information will appear
+                                                                            here...</string>
+                                                                    </property>
+                                                                    <property name="readOnly">
+                                                                        <bool>true</bool>
+                                                                    </property>
+                                                                </widget>
+                                                            </item>
+                                                            <item>
+                                                                <layout class="QHBoxLayout"
+                                                                    name="horizontalLayout_26">
+                                                                    <item>
+                                                                        <widget class="QPushButton"
+                                                                            name="refreshDiskSpaceButton">
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QPushButton
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #3498db;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px
+                                                                                    15px;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    }
+                                                                                    QPushButton:hover
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #2980b9;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Refresh Disk
+                                                                                    Space</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <spacer
+                                                                            name="horizontalSpacer_16">
+                                                                            <property
+                                                                                name="orientation">
+                                                                                <enum>Qt::Horizontal</enum>
+                                                                            </property>
+                                                                            <property
+                                                                                name="sizeHint"
+                                                                                stdset="0">
+                                                                                <size>
+                                                                                    <width>40</width>
+                                                                                    <height>20</height>
+                                                                                </size>
+                                                                            </property>
+                                                                        </spacer>
+                                                                    </item>
+                                                                </layout>
+                                                            </item>
+                                                        </layout>
+                                                    </widget>
+
+                                                    <!-- Large Files Scanner Tab -->
+                                                    <widget class="QWidget" name="largeFilesTab">
+                                                        <attribute name="title">
+                                                            <string>Large Files</string>
+                                                        </attribute>
+                                                        <layout class="QVBoxLayout"
+                                                            name="verticalLayout_35">
+                                                            <item>
+                                                                <widget class="QLabel"
+                                                                    name="largeFilesLabel">
+                                                                    <property name="font">
+                                                                        <font>
+                                                                            <pointsize>11</pointsize>
+                                                                        </font>
+                                                                    </property>
+                                                                    <property name="styleSheet">
+                                                                        <string notr="true">QLabel {
+                                                                            color: #7f8c8d;
+                                                                            padding: 10px;
+                                                                            }</string>
+                                                                    </property>
+                                                                    <property name="text">
+                                                                        <string>Scan for large files
+                                                                            to free up disk space.
+                                                                            Set minimum file size
+                                                                            and scan specific
+                                                                            directories.</string>
+                                                                    </property>
+                                                                    <property name="alignment">
+                                                                        <set>Qt::AlignCenter</set>
+                                                                    </property>
+                                                                </widget>
+                                                            </item>
+                                                            <item>
+                                                                <layout class="QHBoxLayout"
+                                                                    name="horizontalLayout_27">
+                                                                    <item>
+                                                                        <widget class="QLabel"
+                                                                            name="largeFilesPathLabel">
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QLabel
+                                                                                    {
+                                                                                    color: #2c3e50;
+                                                                                    font-weight:
+                                                                                    bold;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Scan Path:</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QLineEdit"
+                                                                            name="largeFilesPathInput">
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QLineEdit
+                                                                                    {
+                                                                                    border: 1px
+                                                                                    solid #ecf0f1;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    padding: 8px;
+                                                                                    background-color:
+                                                                                    #f8f9fa;
+                                                                                    color: #2c3e50;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property
+                                                                                name="placeholderText">
+                                                                                <string>Enter
+                                                                                    directory path
+                                                                                    to scan...</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QLabel"
+                                                                            name="largeFilesSizeLabel">
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QLabel
+                                                                                    {
+                                                                                    color: #2c3e50;
+                                                                                    font-weight:
+                                                                                    bold;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Min Size
+                                                                                    (GB):</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget
+                                                                            class="QDoubleSpinBox"
+                                                                            name="largeFilesSizeSpinBox">
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QDoubleSpinBox
+                                                                                    {
+                                                                                    border: 1px
+                                                                                    solid #ecf0f1;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    padding: 5px;
+                                                                                    background-color:
+                                                                                    #f8f9fa;
+                                                                                    color: #2c3e50;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="minimum">
+                                                                                <double>0.1</double>
+                                                                            </property>
+                                                                            <property name="maximum">
+                                                                                <double>1000.0</double>
+                                                                            </property>
+                                                                            <property name="value">
+                                                                                <double>1.0</double>
+                                                                            </property>
+                                                                            <property
+                                                                                name="singleStep">
+                                                                                <double>0.5</double>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                </layout>
+                                                            </item>
+                                                            <item>
+                                                                <widget class="QTextEdit"
+                                                                    name="largeFilesResults">
+                                                                    <property name="styleSheet">
+                                                                        <string notr="true">QTextEdit
+                                                                            {
+                                                                            border: 1px solid
+                                                                            #ecf0f1;
+                                                                            border-radius: 5px;
+                                                                            padding: 10px;
+                                                                            background-color:
+                                                                            #f8f9fa;
+                                                                            color: #2c3e50;
+                                                                            font-family: 'Consolas',
+                                                                            'Courier New';
+                                                                            font-size: 10px;
+                                                                            max-height: 80px;
+                                                                            }</string>
+                                                                    </property>
+                                                                    <property name="html">
+                                                                        <string>
+                                        <![CDATA[
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+p, li { white-space: pre-wrap; color: #2c3e50; font-family: 'Consolas', 'Courier New'; font-size: 10px; }
+</style></head><body style=" font-family:'Consolas','Courier New'; font-size:10px; font-weight:400; font-style:normal;">
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Ready to scan for large files...</p></body></html>
+                                        ]]>
+                                    </string>
+                                                                    </property>
+                                                                    <property name="placeholderText">
+                                                                        <string>Scan results will
+                                                                            appear here...</string>
+                                                                    </property>
+                                                                    <property name="readOnly">
+                                                                        <bool>true</bool>
+                                                                    </property>
+                                                                </widget>
+                                                            </item>
+                                                            <item>
+                                                                <widget class="QTableWidget"
+                                                                    name="largeFilesTable">
+                                                                    <property name="styleSheet">
+                                                                        <string notr="true">QTableWidget
+                                                                            {
+                                                                            border: 1px solid
+                                                                            #ecf0f1;
+                                                                            border-radius: 5px;
+                                                                            background-color:
+                                                                            #f8f9fa;
+                                                                            color: #2c3e50;
+                                                                            gridline-color: #ecf0f1;
+                                                                            }
+
+                                                                            QTableWidget::item {
+                                                                            padding: 6px;
+                                                                            border-bottom: 1px solid
+                                                                            #ecf0f1;
+                                                                            }
+                                                                            QTableWidget::item:selected
+                                                                            {
+                                                                            background-color:
+                                                                            #1abc9c;
+                                                                            color: white;
+                                                                            }
+
+                                                                            QHeaderView::section {
+                                                                            background-color:
+                                                                            #34495e;
+                                                                            color: white;
+                                                                            padding: 8px;
+                                                                            border: none;
+                                                                            }</string>
+                                                                    </property>
+                                                                    <property name="editTriggers">
+                                                                        <set>
+                                                                            QAbstractItemView::NoEditTriggers</set>
+                                                                    </property>
+                                                                    <property name="selectionMode">
+                                                                        <enum>
+                                                                            QAbstractItemView::SingleSelection</enum>
+                                                                    </property>
+                                                                    <property
+                                                                        name="selectionBehavior">
+                                                                        <enum>
+                                                                            QAbstractItemView::SelectRows</enum>
+                                                                    </property>
+                                                                    <property name="sortingEnabled">
+                                                                        <bool>true</bool>
+                                                                    </property>
+                                                                    <property name="columnCount">
+                                                                        <number>4</number>
+                                                                    </property>
+                                                                    <property name="rowCount">
+                                                                        <number>0</number>
+                                                                    </property>
+                                                                    <column>
+                                                                        <property name="text">
+                                                                            <string>Select</string>
+                                                                        </property>
+                                                                    </column>
+                                                                    <column>
+                                                                        <property name="text">
+                                                                            <string>File Path</string>
+                                                                        </property>
+                                                                    </column>
+                                                                    <column>
+                                                                        <property name="text">
+                                                                            <string>Size</string>
+                                                                        </property>
+                                                                    </column>
+                                                                    <column>
+                                                                        <property name="text">
+                                                                            <string>Last Modified</string>
+                                                                        </property>
+                                                                    </column>
+                                                                </widget>
+                                                            </item>
+                                                            <item>
+                                                                <layout class="QHBoxLayout"
+                                                                    name="horizontalLayout_28">
+                                                                    <item>
+                                                                        <widget class="QPushButton"
+                                                                            name="scanLargeFilesButton">
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QPushButton
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #3498db;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px
+                                                                                    15px;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    }
+                                                                                    QPushButton:hover
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #2980b9;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Scan for
+                                                                                    Large Files</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QPushButton"
+                                                                            name="openFileLocationButton">
+                                                                            <property name="enabled">
+                                                                                <bool>false</bool>
+                                                                            </property>
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QPushButton
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #9b59b6;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px
+                                                                                    15px;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    }
+                                                                                    QPushButton:hover
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #8e44ad;
+                                                                                    }
+                                                                                    QPushButton:disabled
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #bdc3c7;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Open
+                                                                                    Location</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QPushButton"
+                                                                            name="deleteLargeFilesButton">
+                                                                            <property name="enabled">
+                                                                                <bool>false</bool>
+                                                                            </property>
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QPushButton
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #e74c3c;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px
+                                                                                    15px;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    }
+                                                                                    QPushButton:hover
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #c0392b;
+                                                                                    }
+                                                                                    QPushButton:disabled
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #bdc3c7;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Delete
+                                                                                    Selected</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QPushButton" name="cancelLargeFilesButton">
+                                                                            <property name="enabled">
+                                                                                <bool>false</bool>
+                                                                            </property>
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property name="styleSheet">
+                                                                                <string notr="true">QPushButton {
+                                                                                    background-color: #e67e22;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px 15px;
+                                                                                    border-radius: 5px;
+                                                                                    }
+                                                                                    QPushButton:hover {
+                                                                                    background-color: #d35400;
+                                                                                    }
+                                                                                    QPushButton:disabled {
+                                                                                    background-color: #bdc3c7;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Cancel Scan</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <spacer
+                                                                            name="horizontalSpacer_17">
+                                                                            <property
+                                                                                name="orientation">
+                                                                                <enum>Qt::Horizontal</enum>
+                                                                            </property>
+                                                                            <property
+                                                                                name="sizeHint"
+                                                                                stdset="0">
+                                                                                <size>
+                                                                                    <width>40</width>
+                                                                                    <height>20</height>
+                                                                                </size>
+                                                                            </property>
+                                                                        </spacer>
+                                                                    </item>
+                                                                </layout>
+                                                            </item>
+                                                        </layout>
+                                                    </widget>
+
+                                                    <!-- Duplicate Files Finder Tab -->
+                                                    <widget class="QWidget" name="duplicateFilesTab">
+                                                        <attribute name="title">
+                                                            <string>Duplicate Files</string>
+                                                        </attribute>
+                                                        <layout class="QVBoxLayout"
+                                                            name="verticalLayout_36">
+                                                            <item>
+                                                                <widget class="QLabel"
+                                                                    name="duplicateFilesLabel">
+                                                                    <property name="font">
+                                                                        <font>
+                                                                            <pointsize>11</pointsize>
+                                                                        </font>
+                                                                    </property>
+                                                                    <property name="styleSheet">
+                                                                        <string notr="true">QLabel {
+                                                                            color: #7f8c8d;
+                                                                            padding: 10px;
+                                                                            }</string>
+                                                                    </property>
+                                                                    <property name="text">
+                                                                        <string>Find and remove
+                                                                            duplicate files to save
+                                                                            disk space. Scans files
+                                                                            and compares content
+                                                                            hashes.</string>
+                                                                    </property>
+                                                                    <property name="alignment">
+                                                                        <set>Qt::AlignCenter</set>
+                                                                    </property>
+                                                                </widget>
+                                                            </item>
+                                                            <item>
+                                                                <layout class="QHBoxLayout"
+                                                                    name="horizontalLayout_29">
+                                                                    <item>
+                                                                        <widget class="QLabel"
+                                                                            name="duplicateFilesPathLabel">
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QLabel
+                                                                                    {
+                                                                                    color: #2c3e50;
+                                                                                    font-weight:
+                                                                                    bold;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Scan Path:</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QLineEdit"
+                                                                            name="duplicateFilesPathInput">
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QLineEdit
+                                                                                    {
+                                                                                    border: 1px
+                                                                                    solid #ecf0f1;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    padding: 8px;
+                                                                                    background-color:
+                                                                                    #f8f9fa;
+                                                                                    color: #2c3e50;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property
+                                                                                name="placeholderText">
+                                                                                <string>Enter
+                                                                                    directory path
+                                                                                    to scan for
+                                                                                    duplicates...</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                </layout>
+                                                            </item>
+                                                            <item>
+                                                                <widget class="QTextEdit"
+                                                                    name="duplicateFilesResults">
+                                                                    <property name="styleSheet">
+                                                                        <string notr="true">QTextEdit
+                                                                            {
+                                                                            border: 1px solid
+                                                                            #ecf0f1;
+                                                                            border-radius: 5px;
+                                                                            padding: 10px;
+                                                                            background-color:
+                                                                            #f8f9fa;
+                                                                            color: #2c3e50;
+                                                                            font-family: 'Consolas',
+                                                                            'Courier New';
+                                                                            font-size: 10px;
+                                                                            max-height: 80px;
+                                                                            }</string>
+                                                                    </property>
+                                                                    <property name="html">
+                                                                        <string>
+                                        <![CDATA[
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+p, li { white-space: pre-wrap; color: #2c3e50; font-family: 'Consolas', 'Courier New'; font-size: 10px; }
+</style></head><body style=" font-family:'Consolas','Courier New'; font-size:10px; font-weight:400; font-style:normal;">
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Ready to scan for duplicate files...</p></body></html>
+                                        ]]>
+                                    </string>
+                                                                    </property>
+                                                                    <property name="placeholderText">
+                                                                        <string>Duplicate files scan
+                                                                            results will appear
+                                                                            here...</string>
+                                                                    </property>
+                                                                    <property name="readOnly">
+                                                                        <bool>true</bool>
+                                                                    </property>
+                                                                </widget>
+                                                            </item>
+                                                            <item>
+                                                                <widget class="QTreeWidget"
+                                                                    name="duplicateFilesTree">
+                                                                    <property name="styleSheet">
+                                                                        <string notr="true">QTreeWidget
+                                                                            {
+                                                                            border: 1px solid
+                                                                            #ecf0f1;
+                                                                            border-radius: 5px;
+                                                                            background-color:
+                                                                            #f8f9fa;
+                                                                            color: #2c3e50;
+                                                                            }
+
+                                                                            QTreeWidget::item {
+                                                                            padding: 6px;
+                                                                            border-bottom: 1px solid
+                                                                            #ecf0f1;
+                                                                            }
+                                                                            QTreeWidget::item:selected
+                                                                            {
+                                                                            background-color:
+                                                                            #1abc9c;
+                                                                            color: white;
+                                                                            }</string>
+                                                                    </property>
+                                                                    <property name="columnCount">
+                                                                        <number>3</number>
+                                                                    </property>
+                                                                    <property name="headerHidden">
+                                                                        <bool>false</bool>
+                                                                    </property>
+                                                                    <column>
+                                                                        <property name="text">
+                                                                            <string>File Path</string>
+                                                                        </property>
+                                                                    </column>
+                                                                    <column>
+                                                                        <property name="text">
+                                                                            <string>Size</string>
+                                                                        </property>
+                                                                    </column>
+                                                                    <column>
+                                                                        <property name="text">
+                                                                            <string>Modified</string>
+                                                                        </property>
+                                                                    </column>
+                                                                </widget>
+                                                            </item>
+                                                            <item>
+                                                                <layout class="QHBoxLayout"
+                                                                    name="horizontalLayout_30">
+                                                                    <item>
+                                                                        <widget class="QPushButton"
+                                                                            name="scanDuplicateFilesButton">
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QPushButton
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #3498db;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px
+                                                                                    15px;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    }
+                                                                                    QPushButton:hover
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #2980b9;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Scan for
+                                                                                    Duplicates</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QPushButton"
+                                                                            name="deleteDuplicateFilesButton">
+                                                                            <property name="enabled">
+                                                                                <bool>false</bool>
+                                                                            </property>
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property
+                                                                                name="styleSheet">
+                                                                                <string notr="true">QPushButton
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #e74c3c;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px
+                                                                                    15px;
+                                                                                    border-radius:
+                                                                                    5px;
+                                                                                    }
+                                                                                    QPushButton:hover
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #c0392b;
+                                                                                    }
+                                                                                    QPushButton:disabled
+                                                                                    {
+                                                                                    background-color:
+                                                                                    #bdc3c7;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Delete
+                                                                                    Selected</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QPushButton" name="cancelDuplicateFilesButton">
+                                                                            <property name="enabled">
+                                                                                <bool>false</bool>
+                                                                            </property>
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property name="styleSheet">
+                                                                                <string notr="true">QPushButton {
+                                                                                    background-color: #e67e22;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px 15px;
+                                                                                    border-radius: 5px;
+                                                                                    }
+                                                                                    QPushButton:hover {
+                                                                                    background-color: #d35400;
+                                                                                    }
+                                                                                    QPushButton:disabled {
+                                                                                    background-color: #bdc3c7;
+                                                                                    }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Cancel Scan</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <spacer
+                                                                            name="horizontalSpacer_18">
+                                                                            <property
+                                                                                name="orientation">
+                                                                                <enum>Qt::Horizontal</enum>
+                                                                            </property>
+                                                                            <property
+                                                                                name="sizeHint"
+                                                                                stdset="0">
+                                                                                <size>
+                                                                                    <width>40</width>
+                                                                                    <height>20</height>
+                                                                                </size>
+                                                                            </property>
+                                                                        </spacer>
                                                                     </item>
                                                                 </layout>
                                                             </item>
