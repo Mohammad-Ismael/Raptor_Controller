@@ -209,7 +209,7 @@ void SystemCleaner::performSystemClean()
     {
         QString itemText = itemsToClean[i]->text();
         // Clean up the text for display
-        itemText.replace("✅", "").replace("❌", "").trimmed();
+        itemText = itemText.replace("✅", "").replace("❌", "").trimmed();
         confirmationText += "• " + itemText + "\n";
     }
 

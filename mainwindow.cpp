@@ -51,13 +51,12 @@ MainWindow::MainWindow(QWidget *parent)
     // Set initial active button (General)
     on_generalButton_clicked();
 
-// Setup system cleaner list for click selection
+    // Setup system cleaner list for click selection
     connect(ui->systemCleanerList, &QListWidget::itemClicked, this, &MainWindow::onSystemCleanerItemClicked);
 
-    // Also add the connections for the new UI elements
-    connect(ui->largeFilesTable, &QTableWidget::itemChanged, this, &MainWindow::on_largeFilesTable_itemChanged);
-    connect(ui->largeFilesTable, &QTableWidget::itemDoubleClicked, this, &MainWindow::on_largeFilesTable_itemDoubleClicked);  // Add this
-    
+    // Connect the table item click
+    connect(ui->largeFilesTable, &QTableWidget::itemClicked, this, &MainWindow::onLargeFilesTableItemClicked);
+
     // Fix: Connect the cancel buttons properly
     connect(ui->cancelLargeFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelLargeFilesButton_clicked);
     connect(ui->cancelDuplicateFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelDuplicateFilesButton_clicked);
@@ -139,10 +138,12 @@ void MainWindow::resetAllButtons()
     ui->networkButton->setStyleSheet(defaultStyle);
     ui->hardwareButton->setStyleSheet(defaultStyle);
     ui->optionsButton->setStyleSheet(defaultStyle);
+    ui->filesCheckerButton->setStyleSheet(defaultStyle); // Make sure this is included!
 }
 
 void MainWindow::setActiveButton(QPushButton *activeButton)
 {
+    // Reset all buttons first
     resetAllButtons();
 
     // Set active button style with green background
@@ -159,7 +160,24 @@ void MainWindow::setActiveButton(QPushButton *activeButton)
         "    background-color: #16a085;"
         "}";
 
-    activeButton->setStyleSheet(activeStyle);
+    // Apply active style only to the clicked button
+    if (activeButton == ui->generalButton) {
+        ui->generalButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->wifiButton) {
+        ui->wifiButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->appsButton) {
+        ui->appsButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->cleanerButton) {
+        ui->cleanerButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->networkButton) {
+        ui->networkButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->hardwareButton) {
+        ui->hardwareButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->optionsButton) {
+        ui->optionsButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->filesCheckerButton) {
+        ui->filesCheckerButton->setStyleSheet(activeStyle);
+    }
 }
 
 void MainWindow::updateContent(const QString &title)
@@ -173,8 +191,10 @@ void MainWindow::showCleanerPage()
 }
 
 // Main navigation slots
+// Update the navigation slots to cancel operations when switching tabs
 void MainWindow::on_generalButton_clicked()
 {
+    cancelAllOperations();
     setActiveButton(ui->generalButton);
     updateContent("General Settings");
     ui->contentStackedWidget->setCurrentWidget(ui->generalPage);
@@ -208,15 +228,9 @@ void MainWindow::on_generalButton_clicked()
     }
 }
 
-void MainWindow::on_wifiButton_clicked()
-{
-    setActiveButton(ui->wifiButton);
-    updateContent("WiFi Management");
-    ui->contentStackedWidget->setCurrentWidget(ui->wifiPage);
-}
-
 void MainWindow::on_appsButton_clicked()
 {
+    cancelAllOperations();
     setActiveButton(ui->appsButton);
     updateContent("Favorite Apps");
     ui->contentStackedWidget->setCurrentWidget(ui->appsPage);
@@ -228,15 +242,9 @@ void MainWindow::on_appsButton_clicked()
     }
 }
 
-void MainWindow::on_cleanerButton_clicked()
-{
-    setActiveButton(ui->cleanerButton);
-    updateContent("System Cleaner");
-    showCleanerPage();
-}
-
 void MainWindow::on_networkButton_clicked()
 {
+    cancelAllOperations();
     setActiveButton(ui->networkButton);
     updateContent("Network Tools");
     ui->contentStackedWidget->setCurrentWidget(ui->networkPage);
@@ -247,19 +255,13 @@ void MainWindow::on_networkButton_clicked()
 
 void MainWindow::on_hardwareButton_clicked()
 {
+    cancelAllOperations();
     setActiveButton(ui->hardwareButton);
     updateContent("Hardware Information");
     ui->contentStackedWidget->setCurrentWidget(ui->hardwarePage);
 
     // Auto-refresh hardware info when page is opened
     on_pushButton_refreshHardware_clicked();
-}
-
-void MainWindow::on_optionsButton_clicked()
-{
-    setActiveButton(ui->optionsButton);
-    updateContent("Options & Settings");
-    ui->contentStackedWidget->setCurrentWidget(ui->optionsPage);
 }
 
 // Cleaner tab slots - Delegated to SystemCleaner
@@ -630,21 +632,34 @@ void MainWindow::on_pushButton_stopScan_clicked()
     m_networkManager->stopPortScan();
 }
 
-// Add the new navigation slot
-void MainWindow::on_filesCheckerButton_clicked()
-{
-    setActiveButton(ui->filesCheckerButton);
-    updateContent("Files Checker");
-    ui->contentStackedWidget->setCurrentWidget(ui->filesCheckerPage);
-
-    // Refresh disk space on first load
-    m_filesChecker->refreshDiskSpace();
-}
-
 // Implement the new slots
 void MainWindow::on_refreshDiskSpaceButton_clicked()
 {
     m_filesChecker->refreshDiskSpace();
+}
+
+
+
+void MainWindow::debugTableState()
+{
+    qDebug() << "=== Table Debug Info ===";
+    qDebug() << "Table row count:" << ui->largeFilesTable->rowCount();
+    qDebug() << "Table column count:" << ui->largeFilesTable->columnCount();
+    qDebug() << "Table is visible:" << ui->largeFilesTable->isVisible();
+    qDebug() << "Table viewport is visible:" << ui->largeFilesTable->viewport()->isVisible();
+    
+    for (int i = 0; i < ui->largeFilesTable->rowCount() && i < 5; ++i) {
+        qDebug() << "Row" << i << "data:";
+        for (int j = 0; j < ui->largeFilesTable->columnCount(); ++j) {
+            QTableWidgetItem *item = ui->largeFilesTable->item(i, j);
+            if (item) {
+                qDebug() << "  Col" << j << ":" << item->text() << "CheckState:" << item->checkState();
+            } else {
+                qDebug() << "  Col" << j << ": NULL ITEM";
+            }
+        }
+    }
+    qDebug() << "=== End Table Debug ===";
 }
 
 void MainWindow::on_scanLargeFilesButton_clicked()
@@ -657,8 +672,16 @@ void MainWindow::on_scanLargeFilesButton_clicked()
     }
 
     double minSizeGB = ui->largeFilesSizeSpinBox->value();
+    
+    qDebug() << "=== Starting scan ===";
+    qDebug() << "Path:" << path;
+    qDebug() << "Min size:" << minSizeGB << "GB";
+    
     if (m_filesChecker) {
         m_filesChecker->scanLargeFiles(path, minSizeGB);
+        
+        // Debug table state after a short delay
+        QTimer::singleShot(1000, this, &MainWindow::debugTableState);
     }
 }
 
@@ -697,13 +720,10 @@ void MainWindow::on_deleteLargeFilesButton_clicked()
         QTableWidgetItem *pathItem = ui->largeFilesTable->item(row, 1);
         QTableWidgetItem *sizeItem = ui->largeFilesTable->item(row, 2);
 
-        if (checkItem && checkItem->checkState() == Qt::Checked && pathItem && sizeItem) {
+        if (checkItem && checkItem->data(Qt::UserRole).toBool() && pathItem && sizeItem) {
             FileInfo fileInfo;
             fileInfo.path = pathItem->text();
-            
-            // Parse the size from the formatted string
-            QString sizeStr = sizeItem->text();
-            fileInfo.size = 0; // We'll calculate this if needed
+            fileInfo.size = 0;
             fileInfo.isSelected = true;
             filesToDelete.append(fileInfo);
         }
@@ -720,13 +740,14 @@ void MainWindow::on_deleteLargeFilesButton_clicked()
         // Remove deleted rows from the table
         for (int row = ui->largeFilesTable->rowCount() - 1; row >= 0; --row) {
             QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
-            if (checkItem && checkItem->checkState() == Qt::Checked) {
+            if (checkItem && checkItem->data(Qt::UserRole).toBool()) {
                 ui->largeFilesTable->removeRow(row);
             }
         }
         
         // Update the results text
         ui->largeFilesResults->append(QString("\nDeleted %1 file(s).").arg(filesToDelete.size()));
+        updateDeleteButtonState();
     }
 }
 
@@ -827,17 +848,116 @@ void MainWindow::on_largeFilesTable_itemDoubleClicked(QTableWidgetItem *item)
     }
 }
 
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    cancelAllOperations();
+    QMainWindow::closeEvent(event);
+}
+
+void MainWindow::cancelAllOperations()
+{
+    // Cancel all running operations before switching tabs
+    if (m_filesChecker) {
+        m_filesChecker->cancelLargeFilesScan();
+        m_filesChecker->cancelDuplicateFilesScan();
+    }
+    
+    // Process events to ensure cancellation happens immediately
+    QCoreApplication::processEvents();
+    
+    // Add other managers if they have cancelable operations
+    if (m_networkManager) {
+        // Add network operation cancellations if needed
+    }
+}
+
+void MainWindow::on_wifiButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->wifiButton);
+    updateContent("WiFi Management");
+    ui->contentStackedWidget->setCurrentWidget(ui->wifiPage);
+}
+
+
+void MainWindow::on_cleanerButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->cleanerButton);
+    updateContent("System Cleaner");
+    showCleanerPage();
+}
+
+
+void MainWindow::on_optionsButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->optionsButton);
+    updateContent("Options & Settings");
+    ui->contentStackedWidget->setCurrentWidget(ui->optionsPage);
+}
+
+void MainWindow::on_filesCheckerButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->filesCheckerButton);
+    updateContent("Files Checker");
+    ui->contentStackedWidget->setCurrentWidget(ui->filesCheckerPage);
+
+    // Refresh disk space on first load
+    if (m_filesChecker) {
+        m_filesChecker->refreshDiskSpace();
+    }
+}
+
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == ui->largeFilesTable->viewport() && event->type() == QEvent::MouseButtonPress) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        QModelIndex index = ui->largeFilesTable->indexAt(mouseEvent->pos());
+        
+        if (index.isValid() && index.column() == 0) { // Checkbox column
+            QTableWidgetItem *item = ui->largeFilesTable->item(index.row(), 0);
+            if (item) {
+                // Toggle the checkbox
+                bool isChecked = item->data(Qt::UserRole).toBool();
+                if (isChecked) {
+                    item->setText("❌");
+                    item->setData(Qt::UserRole, false);
+                } else {
+                    item->setText("✅");
+                    item->setData(Qt::UserRole, true);
+                }
+                
+                // Update delete button state
+                updateDeleteButtonState();
+                return true; // Event handled
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
+}
+
+void MainWindow::updateDeleteButtonState()
+{
+    bool hasSelection = false;
+    for (int row = 0; row < ui->largeFilesTable->rowCount(); ++row) {
+        QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+        if (checkItem && checkItem->data(Qt::UserRole).toBool()) {
+            hasSelection = true;
+            break;
+        }
+    }
+    ui->deleteLargeFilesButton->setEnabled(hasSelection);
+}
+
 void MainWindow::on_largeFilesTable_itemChanged(QTableWidgetItem *item)
 {
     if (!item) return;
     
     if (item->column() == 0) { // Checkbox column
-        // Update the checkbox display with emojis
-        if (item->checkState() == Qt::Checked) {
-            item->setText("✅"); // Checkmark when selected
-        } else {
-            item->setText("❌"); // X when not selected
-        }
+        // NO EMOJI TEXT - let Qt handle the checkbox visuals
         
         // Enable/disable delete button based on selection
         bool hasSelection = false;
@@ -849,6 +969,26 @@ void MainWindow::on_largeFilesTable_itemChanged(QTableWidgetItem *item)
             }
         }
         ui->deleteLargeFilesButton->setEnabled(hasSelection);
-        ui->openFileLocationButton->setEnabled(hasSelection);
+    }
+}
+
+void MainWindow::onLargeFilesTableItemClicked(QTableWidgetItem *item)
+{
+    if (!item) return;
+    
+    // Only handle clicks in the checkbox column (column 0)
+    if (item->column() == 0) {
+        // Toggle the checkbox
+        bool isChecked = item->data(Qt::UserRole).toBool();
+        if (isChecked) {
+            item->setText("❌");
+            item->setData(Qt::UserRole, false);
+        } else {
+            item->setText("✅");
+            item->setData(Qt::UserRole, true);
+        }
+        
+        // Update delete button state
+        updateDeleteButtonState();
     }
 }

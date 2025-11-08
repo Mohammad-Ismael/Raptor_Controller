@@ -6,7 +6,8 @@
 #include <QTableWidgetItem>
 #include <QTreeWidgetItem>
 #include <QCompleter>  // Add this line
-
+#include <QMouseEvent> // ADD THIS
+#include <QEvent>      // ADD THIS
 
 // Include the actual headers instead of forward declarations
 #include "modules/systemcleaner.h"
@@ -31,12 +32,17 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void closeEvent(QCloseEvent *event) override;
 
     // Make UI accessible to modules
     Ui::MainWindow *ui;
 
 private slots:
-    void on_largeFilesTable_itemDoubleClicked(QTableWidgetItem *item);  // Add this
+
+    void onLargeFilesTableItemClicked(QTableWidgetItem *item);
+    bool eventFilter(QObject *obj, QEvent *event);
+
+    void on_largeFilesTable_itemDoubleClicked(QTableWidgetItem *item); // Add this
     // Add these to your existing slots
     void on_filesCheckerButton_clicked();
     void on_refreshDiskSpaceButton_clicked();
@@ -124,7 +130,7 @@ private slots:
     void on_pushButton_startScan_clicked();
     void on_pushButton_stopScan_clicked();
 
-        void on_cancelLargeFilesButton_clicked();
+    void on_cancelLargeFilesButton_clicked();
     void on_cancelDuplicateFilesButton_clicked();
     void on_browseLargeFilesPathButton_clicked();
     void on_browseDuplicateFilesPathButton_clicked();
@@ -148,6 +154,11 @@ private:
     void updateContent(const QString &title);
     void showCleanerPage();
     void populateSoftwareTable();
+
+    void cancelAllOperations();
+    void debugTableState();
+
+    void updateDeleteButtonState();
 };
 
 #endif // MAINWINDOW_H

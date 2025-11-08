@@ -30,9 +30,9 @@ class FilesChecker : public QObject
 
 public:
     explicit FilesChecker(MainWindow *mainWindow, QObject *parent = nullptr);
-    ~FilesChecker();  // Add destructor
+    ~FilesChecker();
     
-    void scanLargeFiles(const QString &path, double minSizeGB);  // Change to double
+    void scanLargeFiles(const QString &path, double minSizeGB);
     void cancelLargeFilesScan();
     void scanDuplicateFiles(const QString &path);
     void cancelDuplicateFilesScan();
@@ -40,8 +40,7 @@ public:
     void openFileLocation(const QString &filePath);
     void refreshDiskSpace();
     QStringList getCommonPaths();
-        void openFileDirectory(const QString &filePath);  // Add this line
-
+     void openFileDirectory(const QString &filePath);  // ADD THIS LINE
 
 private slots:
     void onLargeFilesScanFinished();
