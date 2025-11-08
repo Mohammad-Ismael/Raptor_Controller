@@ -2,11 +2,15 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QFuture>
-#include <QtConcurrent/QtConcurrent>
-#include <QFutureWatcher>
-#include <QVector>
 #include <QPushButton>
+
+// Include the actual headers instead of forward declarations
+#include "modules/systemcleaner.h"
+#include "modules/networkmanager.h"
+#include "modules/hardwareinfo.h"
+#include "modules/appmanager.h"
+#include "modules/softwaremanager.h"
+#include "modules/wifimanager.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -21,6 +25,9 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+    // Make UI accessible to modules
+    Ui::MainWindow *ui;
 
 private slots:
     // Main navigation slots
@@ -97,27 +104,14 @@ private slots:
     void on_pushButton_startScan_clicked();
     void on_pushButton_stopScan_clicked();
 
-    // Async scanning slots
-    void onScanFinished();
-    void updateScanProgress(int value);
-
 private:
-    Ui::MainWindow *ui;
-
-    // Async scanning members
-    QFutureWatcher<QVector<double>> *m_scanWatcher;
-    QVector<double> m_scanResults;
-    bool m_isScanning;
-
-    // Network tools members
-    QTimer *m_pingTimer;
-    QTimer *m_tracerouteTimer;
-    QTimer *m_scanTimer;
-    int m_pingCount;
-    int m_tracerouteHop;
-    int m_currentScanPort;
-    int m_scanEndPort;
-    int m_openPortsFound;
+    // Modular managers
+    SystemCleaner *m_systemCleaner;
+    NetworkManager *m_networkManager;
+    HardwareInfo *m_hardwareInfo;
+    AppManager *m_appManager;
+    SoftwareManager *m_softwareManager;
+    WiFiManager *m_wifiManager;
 
     // Private methods
     void setupConnections();
@@ -126,12 +120,6 @@ private:
     void updateContent(const QString &title);
     void showCleanerPage();
     void populateSoftwareTable();
-    
-    // Scanning methods
-    static QVector<double> performScan();
-    void simulatePing();
-    void simulateTraceroute();
-    void simulatePortScan();
 };
 
 #endif // MAINWINDOW_H

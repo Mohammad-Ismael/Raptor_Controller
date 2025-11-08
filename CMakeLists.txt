@@ -23,9 +23,13 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(Ratpro_Con
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        windowsutils.h
-        windowsutils.cpp
-        cleaneritem.h
+        utils/windowsutils.h
+        utils/windowsutils.cpp
+        utils/cleaneritem.h
+        modules/appmanager.cpp modules/appmanager.h modules/hardwareinfo.cpp modules/hardwareinfo.h modules/networkmanager.cpp modules/networkmanager.h modules/softwaremanager.cpp modules/softwaremanager.h modules/systemcleaner.cpp modules/systemcleaner.h modules/wifimanager.cpp modules/wifimanager.h
+        modules/appmanager.cpp modules/appmanager.h modules/hardwareinfo.cpp modules/hardwareinfo.h modules/networkmanager.cpp modules/networkmanager.h modules/softwaremanager.cpp modules/softwaremanager.h modules/systemcleaner.cpp modules/systemcleaner.h modules/wifimanager.cpp modules/wifimanager.h
+        modules/appmanager.cpp modules/appmanager.h modules/hardwareinfo.cpp modules/hardwareinfo.h modules/networkmanager.cpp modules/networkmanager.h modules/softwaremanager.cpp modules/softwaremanager.h modules/systemcleaner.cpp modules/systemcleaner.h modules/wifimanager.cpp modules/wifimanager.h
+        utils/cleaneritem.cpp utils/cleaneritem.h
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Ratpro_Con APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
