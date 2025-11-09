@@ -373,103 +373,7 @@ void SoftwareManager::populateSoftwareTable()
 
 QList<SoftwareManager::InstalledSoftware> SoftwareManager::getInstalledSoftwareFromRegistry()
 {
-    QList<InstalledSoftware> softwareList;
-    
-    if (m_cancelScan) {
-        return softwareList;
-    }
-
-    // Registry paths for installed software
-    QStringList registryPaths = {
-        "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
-        "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
-        "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
-    };
-
-    int totalPaths = registryPaths.size();
-    int currentPath = 0;
-
-    for (const QString &registryPath : registryPaths) {
-        if (m_cancelScan) break;
-
-        currentPath++;
-        int progress = (currentPath * 100) / totalPaths;
-        emit scanProgressUpdated(progress, QString("🔍 Scanning registry: %1...").arg(registryPath));
-
-        QSettings registry(registryPath, QSettings::NativeFormat);
-        QStringList groups = registry.childGroups();
-        
-        int totalGroups = groups.size();
-        int currentGroup = 0;
-
-        for (const QString &group : groups) {
-            if (m_cancelScan) break;
-
-            currentGroup++;
-            if (currentGroup % 10 == 0) { // Update progress every 10 items
-                int groupProgress = (currentGroup * 100) / totalGroups;
-                int overallProgress = ((currentPath - 1) * 100 + groupProgress) / totalPaths;
-                emit scanProgressUpdated(overallProgress, 
-                    QString("📋 Processing software (%1/%2)...").arg(currentGroup).arg(totalGroups));
-            }
-
-            registry.beginGroup(group);
-            
-            InstalledSoftware software;
-            software.guid = group;
-            software.name = registry.value("DisplayName").toString();
-            software.version = registry.value("DisplayVersion").toString();
-            software.publisher = registry.value("Publisher").toString();
-            software.uninstallString = registry.value("UninstallString").toString();
-            software.quietUninstallString = registry.value("QuietUninstallString").toString();
-            
-            // Get install date
-            QString installDate = registry.value("InstallDate").toString();
-            if (!installDate.isEmpty() && installDate.length() == 8) {
-                // Format: YYYYMMDD
-                software.installDate = QString("%1-%2-%3")
-                    .arg(installDate.left(4))
-                    .arg(installDate.mid(4, 2))
-                    .arg(installDate.mid(6, 2));
-            } else {
-                software.installDate = "Unknown";
-            }
-            
-            // Get size from install location (this is the slow part)
-            QString installLocation = registry.value("InstallLocation").toString();
-            if (!installLocation.isEmpty() && QDir(installLocation).exists()) {
-                software.size = getSoftwareSize(installLocation).toLongLong();
-            } else {
-                // Try to get size from registry if available
-                QVariant sizeVar = registry.value("EstimatedSize");
-                if (sizeVar.isValid()) {
-                    software.size = sizeVar.toLongLong() * 1024; // Convert KB to bytes
-                } else {
-                    software.size = 0;
-                }
-            }
-            
-            // Check if system component
-            software.isSystemComponent = registry.value("SystemComponent").toBool() || 
-                                        software.publisher.contains("Microsoft", Qt::CaseInsensitive) ||
-                                        software.name.contains("Update", Qt::CaseInsensitive);
-            
-            // Only add if it has a display name and uninstall capability
-            if (!software.name.isEmpty() && 
-                (!software.uninstallString.isEmpty() || !software.quietUninstallString.isEmpty())) {
-                softwareList.append(software);
-            }
-            
-            registry.endGroup();
-            
-            // Small delay to keep UI responsive
-            if (currentGroup % 5 == 0) {
-                QThread::msleep(1);
-            }
-        }
-    }
-    
-    return softwareList;
+    return getInstalledSoftwareFromRegistryFast();
 }
 
 QString SoftwareManager::getSoftwareSize(const QString &installPath)
@@ -607,4 +511,149 @@ void SoftwareManager::terminateProcess(const QString &processName)
     }
     
     CloseHandle(hSnapshot);
+}
+
+QList<SoftwareManager::InstalledSoftware> SoftwareManager::getInstalledSoftwareFromRegistryFast()
+{
+    QList<InstalledSoftware> softwareList;
+    
+    if (m_cancelScan) {
+        return softwareList;
+    }
+
+    // Registry paths for installed software
+    QStringList registryPaths = {
+        "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+        "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall", 
+        "HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall"
+    };
+
+    // Scan all registry locations in parallel (much faster)
+    QVector<QList<InstalledSoftware>> results(registryPaths.size());
+    QVector<QFuture<void>> futures;
+    
+    for (int i = 0; i < registryPaths.size(); ++i) {
+        if (m_cancelScan) break;
+        
+        futures.append(QtConcurrent::run([this, i, &registryPaths, &results]() {
+            this->scanRegistryLocation(registryPaths[i], results[i]);
+        }));
+    }
+    
+    // Wait for all scans to complete
+    for (auto &future : futures) {
+        if (m_cancelScan) break;
+        future.waitForFinished();
+    }
+    
+    // Combine results
+    for (const auto &result : results) {
+        softwareList.append(result);
+    }
+    
+    return softwareList;
+}
+
+void SoftwareManager::scanRegistryLocation(const QString &registryPath, QList<InstalledSoftware> &softwareList)
+{
+    QSettings registry(registryPath, QSettings::NativeFormat);
+    QStringList groups = registry.childGroups();
+    
+    for (const QString &group : groups) {
+        if (m_cancelScan) break;
+        
+        registry.beginGroup(group);
+        
+        InstalledSoftware software;
+        software.guid = group;
+        software.name = registry.value("DisplayName").toString();
+        
+        // Skip if no display name
+        if (software.name.isEmpty()) {
+            registry.endGroup();
+            continue;
+        }
+        
+        software.version = registry.value("DisplayVersion").toString();
+        software.publisher = registry.value("Publisher").toString();
+        software.uninstallString = registry.value("UninstallString").toString();
+        software.quietUninstallString = registry.value("QuietUninstallString").toString();
+        
+        // Get install date (fast)
+        QString installDate = registry.value("InstallDate").toString();
+        if (!installDate.isEmpty() && installDate.length() == 8) {
+            software.installDate = QString("%1-%2-%3")
+                .arg(installDate.left(4))
+                .arg(installDate.mid(4, 2))
+                .arg(installDate.mid(6, 2));
+        } else {
+            software.installDate = "Unknown";
+        }
+        
+        // Get size - USE REGISTRY VALUE ONLY (much faster)
+        QVariant sizeVar = registry.value("EstimatedSize");
+        if (sizeVar.isValid()) {
+            software.size = sizeVar.toLongLong() * 1024; // Convert KB to bytes
+        } else {
+            // Only scan disk if absolutely necessary
+            QString installLocation = registry.value("InstallLocation").toString();
+            if (!installLocation.isEmpty() && QDir(installLocation).exists()) {
+                software.size = getSoftwareSizeFast(installLocation).toLongLong();
+            } else {
+                software.size = 0;
+            }
+        }
+        
+        // Check if system component
+        software.isSystemComponent = registry.value("SystemComponent").toBool() || 
+                                    software.publisher.contains("Microsoft", Qt::CaseInsensitive) ||
+                                    software.name.contains("Update", Qt::CaseInsensitive);
+        
+        // Only add if it has uninstall capability
+        if (!software.uninstallString.isEmpty() || !software.quietUninstallString.isEmpty()) {
+            softwareList.append(software);
+        }
+        
+        registry.endGroup();
+    }
+}
+
+
+QString SoftwareManager::getSoftwareSizeFast(const QString &installPath)
+{
+    if (installPath.isEmpty() || !QDir(installPath).exists() || m_cancelScan) {
+        return "0";
+    }
+    
+    return QString::number(calculateDirectorySizeFast(installPath));
+}
+
+qint64 SoftwareManager::calculateDirectorySizeFast(const QString &path)
+{
+    if (m_cancelScan) return 0;
+    
+    qint64 totalSize = 0;
+    QDir dir(path);
+    
+    // Use QDirIterator for faster directory traversal
+    QDirIterator it(path, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+    
+    int fileCount = 0;
+    while (it.hasNext() && !m_cancelScan) {
+        it.next();
+        totalSize += it.fileInfo().size();
+        fileCount++;
+        
+        // Sample files after first 100 to speed up large directories
+        if (fileCount > 100) {
+            // Estimate remaining size based on average file size
+            double avgFileSize = totalSize / (double)fileCount;
+            QDir tempDir(it.path());
+            int remainingFiles = tempDir.entryList(QDir::Files | QDir::NoDotAndDotDot).size();
+            totalSize += (qint64)(avgFileSize * remainingFiles);
+            break;
+        }
+    }
+    
+    return totalSize;
 }

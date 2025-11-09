@@ -17,7 +17,7 @@ class SoftwareManager : public QObject
 public:
     explicit SoftwareManager(MainWindow *mainWindow, QObject *parent = nullptr);
     ~SoftwareManager();
-    
+
     void refreshSoftware();
     void searchSoftware(const QString &searchText);
     void onSoftwareSelectionChanged();
@@ -31,7 +31,8 @@ signals:
     void scanFinished(bool success, const QString &message);
 
 private:
-    struct InstalledSoftware {
+    struct InstalledSoftware
+    {
         QString name;
         QString version;
         QString publisher;
@@ -47,7 +48,7 @@ private:
     QList<InstalledSoftware> m_installedSoftware;
     QFutureWatcher<QList<InstalledSoftware>> *m_scanWatcher;
     QAtomicInteger<bool> m_cancelScan;
-    
+
     void scanInstalledSoftware();
     QList<InstalledSoftware> getInstalledSoftwareFromRegistry();
     QString getSoftwareSize(const QString &uninstallPath);
@@ -55,9 +56,15 @@ private:
     void executeUninstall(const QString &uninstallString, bool force = false);
     bool isSoftwareRunning(const QString &softwareName);
     void terminateProcess(const QString &processName);
-    
+
     void setupConnections();
     void onScanFinished();
+
+    // Fast scanning methods
+    QList<InstalledSoftware> getInstalledSoftwareFromRegistryFast();
+    QString getSoftwareSizeFast(const QString &uninstallPath);
+    void scanRegistryLocation(const QString &registryPath, QList<InstalledSoftware> &softwareList);
+    qint64 calculateDirectorySizeFast(const QString &path);
 
 private slots:
     void updateScanProgress();
