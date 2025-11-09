@@ -8,6 +8,8 @@
 #include <QCompleter>  // Add this line
 #include <QMouseEvent> // ADD THIS
 #include <QEvent>      // ADD THIS
+#include <QMenu>       // ADD THIS LINE
+#include <QAction>     // ADD THIS LINE
 
 // Include the actual headers instead of forward declarations
 #include "modules/systemcleaner.h"
@@ -147,6 +149,11 @@ private:
     WiFiManager *m_wifiManager;
     FilesChecker *m_filesChecker;
 
+    void ensureOneFileKeptPerGroup(QTreeWidgetItem *groupItem);
+
+void keepNewestInAllGroups();
+void selectAllForDeletion();
+
     // Private methods
     void setupConnections();
     void resetAllButtons();
@@ -154,11 +161,21 @@ private:
     void updateContent(const QString &title);
     void showCleanerPage();
     void populateSoftwareTable();
-
     void cancelAllOperations();
     void debugTableState();
-
     void updateDeleteButtonState();
+
+    // Duplicate files management
+    void onDuplicateFilesTreeItemClicked(QTreeWidgetItem *item, int column);
+    void updateDuplicateDeleteButtonState();
+    void ensureOneFilePerGroup(QTreeWidgetItem *groupItem);
+    void selectAllDuplicateFiles();
+    void deselectAllDuplicateFiles();
+    void onDuplicateFilesContextMenu(const QPoint &pos);
+    void showFileProperties(const QString &filePath);
+    QString formatFileSize(qint64 size);
+
+    void onDuplicateFilesTreeItemChanged(QTreeWidgetItem *item, int column);
 };
 
 #endif // MAINWINDOW_H

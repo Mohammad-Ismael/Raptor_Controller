@@ -10,7 +10,8 @@
 
 class MainWindow;
 
-struct FileInfo {
+struct FileInfo
+{
     QString path;
     qint64 size;
     QString sizeFormatted;
@@ -18,7 +19,8 @@ struct FileInfo {
     bool isSelected;
 };
 
-struct DuplicateFile {
+struct DuplicateFile
+{
     QString hash;
     QVector<FileInfo> files;
     qint64 totalSize;
@@ -31,7 +33,7 @@ class FilesChecker : public QObject
 public:
     explicit FilesChecker(MainWindow *mainWindow, QObject *parent = nullptr);
     ~FilesChecker();
-    
+
     void scanLargeFiles(const QString &path, double minSizeGB);
     void cancelLargeFilesScan();
     void scanDuplicateFiles(const QString &path);
@@ -40,7 +42,8 @@ public:
     void openFileLocation(const QString &filePath);
     void refreshDiskSpace();
     QStringList getCommonPaths();
-     void openFileDirectory(const QString &filePath);  // ADD THIS LINE
+    void openFileDirectory(const QString &filePath); // ADD THIS LINE
+    void deleteSelectedDuplicateFiles();
 
 private slots:
     void onLargeFilesScanFinished();
@@ -52,11 +55,13 @@ private:
     QFutureWatcher<QVector<DuplicateFile>> *m_duplicateFilesWatcher;
     QAtomicInteger<bool> m_cancelLargeFilesScan;
     QAtomicInteger<bool> m_cancelDuplicateFilesScan;
-
+    static void collectFilesBySize(const QString &path, QHash<qint64, QVector<FileInfo>> &sizeGroups, QAtomicInteger<bool> &cancelFlag);
     static QVector<FileInfo> performLargeFilesScan(const QString &path, qint64 minSizeBytes, QAtomicInteger<bool> &cancelFlag);
     static QVector<DuplicateFile> performDuplicateFilesScan(const QString &path, QAtomicInteger<bool> &cancelFlag);
     static QString calculateFileHash(const QString &filePath, QAtomicInteger<bool> &cancelFlag);
     static QString formatFileSize(qint64 size);
+    void setupDuplicateFilesTree();
+
 };
 
 #endif // FILESCHECKER_H

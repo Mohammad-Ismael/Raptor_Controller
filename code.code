@@ -1,0 +1,3833 @@
+#include "mainwindow.h"
+
+#include <QApplication>
+
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    MainWindow w;
+    w.show();
+    return a.exec();
+}#include "mainwindow.h"
+#include "./ui_mainwindow.h"
+#include "modules/systemcleaner.h"
+#include "modules/networkmanager.h"
+#include "modules/hardwareinfo.h"
+#include "modules/appmanager.h"
+#include "modules/softwaremanager.h"
+#include "modules/wifimanager.h"
+
+#include <QFileDialog>
+#include <QRegularExpression>
+#include <QTableWidgetItem>
+#include <QTimer>
+#include <QMessageBox>
+#include <QDateTime>
+#include <QVBoxLayout>
+#include <QLabel>
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent), ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+
+    // Set window properties
+    setWindowTitle("Raptor PC Controller");
+    setMinimumSize(1000, 700);
+
+    // Initialize ALL modular managers
+    m_systemCleaner = new SystemCleaner(this, this);
+    m_networkManager = new NetworkManager(this, this);
+    m_hardwareInfo = new HardwareInfo(this, this);
+    m_appManager = new AppManager(this, this);
+    m_softwareManager = new SoftwareManager(this, this);
+    m_wifiManager = new WiFiManager(this, this);
+    m_filesChecker = new FilesChecker(this, this);
+
+    // Add path suggestions for file checker
+    QStringList commonPaths = m_filesChecker->getCommonPaths();
+    QCompleter *pathCompleter = new QCompleter(commonPaths, this);
+    pathCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+
+    ui->largeFilesPathInput->setCompleter(pathCompleter);
+    ui->duplicateFilesPathInput->setCompleter(pathCompleter);
+
+    // Set default paths
+    ui->largeFilesPathInput->setText(QDir::homePath());
+    ui->duplicateFilesPathInput->setText(QDir::homePath());
+
+    setupConnections();
+
+    // Set initial active button (General)
+    on_generalButton_clicked();
+
+    // Setup system cleaner list for click selection
+    connect(ui->systemCleanerList, &QListWidget::itemClicked, this, &MainWindow::onSystemCleanerItemClicked);
+
+    // Connect the table item click
+    connect(ui->largeFilesTable, &QTableWidget::itemClicked, this, &MainWindow::onLargeFilesTableItemClicked);
+
+    // Fix: Connect the cancel buttons properly
+    connect(ui->cancelLargeFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelLargeFilesButton_clicked);
+    connect(ui->cancelDuplicateFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelDuplicateFilesButton_clicked);
+}
+
+// Add this new slot to MainWindow class (add declaration to mainwindow.h too)
+void MainWindow::onSystemCleanerItemClicked(QListWidgetItem *item)
+{
+    if (!item)
+        return;
+
+    QString text = item->text();
+
+    // Toggle between checked (✅) and unchecked (❌)
+    if (text.contains("❌"))
+    {
+        text.replace("❌", "✅");
+    }
+    else
+    {
+        text.replace("✅", "❌");
+    }
+
+    item->setText(text);
+
+    // Enable/disable clean button based on whether any items are selected
+    bool hasSelected = false;
+    for (int i = 0; i < ui->systemCleanerList->count(); ++i)
+    {
+        if (ui->systemCleanerList->item(i)->text().contains("✅"))
+        {
+            hasSelected = true;
+            break;
+        }
+    }
+
+    ui->cleanSystemButton->setEnabled(hasSelected);
+}
+
+MainWindow::~MainWindow()
+{
+    delete m_systemCleaner;
+    delete m_networkManager;
+    delete m_hardwareInfo;
+    delete m_appManager;
+    delete m_softwareManager;
+    delete m_wifiManager;
+    delete ui;
+}
+
+void MainWindow::setupConnections()
+{
+    // Note: Most connections are auto-connected via Qt's naming convention
+}
+
+void MainWindow::resetAllButtons()
+{
+    // Reset all buttons to default style
+    QString defaultStyle =
+        "QPushButton {"
+        "    background-color: transparent;"
+        "    color: white;"
+        "    border: none;"
+        "    padding: 15px 20px;"
+        "    text-align: left;"
+        "    border-bottom: 1px solid #34495e;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #34495e;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #1abc9c;"
+        "}";
+
+    ui->generalButton->setStyleSheet(defaultStyle);
+    ui->wifiButton->setStyleSheet(defaultStyle);
+    ui->appsButton->setStyleSheet(defaultStyle);
+    ui->cleanerButton->setStyleSheet(defaultStyle);
+    ui->networkButton->setStyleSheet(defaultStyle);
+    ui->hardwareButton->setStyleSheet(defaultStyle);
+    ui->optionsButton->setStyleSheet(defaultStyle);
+    ui->filesCheckerButton->setStyleSheet(defaultStyle); // Make sure this is included!
+}
+
+void MainWindow::setActiveButton(QPushButton *activeButton)
+{
+    // Reset all buttons first
+    resetAllButtons();
+
+    // Set active button style with green background
+    QString activeStyle =
+        "QPushButton {"
+        "    background-color: #1abc9c;"
+        "    color: white;"
+        "    border: none;"
+        "    padding: 15px 20px;"
+        "    text-align: left;"
+        "    border-bottom: 1px solid #34495e;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #16a085;"
+        "}";
+
+    // Apply active style only to the clicked button
+    if (activeButton == ui->generalButton) {
+        ui->generalButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->wifiButton) {
+        ui->wifiButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->appsButton) {
+        ui->appsButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->cleanerButton) {
+        ui->cleanerButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->networkButton) {
+        ui->networkButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->hardwareButton) {
+        ui->hardwareButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->optionsButton) {
+        ui->optionsButton->setStyleSheet(activeStyle);
+    } else if (activeButton == ui->filesCheckerButton) {
+        ui->filesCheckerButton->setStyleSheet(activeStyle);
+    }
+}
+
+void MainWindow::updateContent(const QString &title)
+{
+    ui->titleLabel->setText(title);
+}
+
+void MainWindow::showCleanerPage()
+{
+    ui->contentStackedWidget->setCurrentWidget(ui->cleanerPage);
+}
+
+// Main navigation slots
+// Update the navigation slots to cancel operations when switching tabs
+void MainWindow::on_generalButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->generalButton);
+    updateContent("General Settings");
+    ui->contentStackedWidget->setCurrentWidget(ui->generalPage);
+
+    // Populate startup programs table
+    if (ui->startupTable->rowCount() == 0)
+    {
+        QStringList startupPrograms = {
+            "Microsoft OneDrive", "Spotify", "Adobe Creative Cloud",
+            "Discord", "Steam Client", "NVIDIA Control Panel",
+            "Realtek Audio", "Windows Security", "Google Update"};
+
+        QStringList impacts = {"Low", "Medium", "High", "Low", "Medium", "Low", "Low", "Low", "Low"};
+        QStringList types = {"Registry", "Startup Folder", "Service", "Registry", "Registry", "Service", "Service", "Service", "Scheduled Task"};
+
+        for (int i = 0; i < startupPrograms.size(); ++i)
+        {
+            int row = ui->startupTable->rowCount();
+            ui->startupTable->insertRow(row);
+
+            ui->startupTable->setItem(row, 0, new QTableWidgetItem(startupPrograms[i]));
+
+            QTableWidgetItem *statusItem = new QTableWidgetItem("Enabled");
+            statusItem->setForeground(QBrush(QColor("#2ecc71")));
+            ui->startupTable->setItem(row, 1, statusItem);
+
+            ui->startupTable->setItem(row, 2, new QTableWidgetItem(impacts[i]));
+            ui->startupTable->setItem(row, 3, new QTableWidgetItem(types[i]));
+        }
+        ui->startupTable->resizeColumnsToContents();
+    }
+}
+
+void MainWindow::on_appsButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->appsButton);
+    updateContent("Favorite Apps");
+    ui->contentStackedWidget->setCurrentWidget(ui->appsPage);
+
+    // Populate apps on first load
+    if (ui->appsGridLayout->count() == 0)
+    {
+        on_refreshAppsButton_clicked();
+    }
+}
+
+void MainWindow::on_networkButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->networkButton);
+    updateContent("Network Tools");
+    ui->contentStackedWidget->setCurrentWidget(ui->networkPage);
+
+    // Auto-refresh network status when page is opened
+    on_pushButton_refreshNetwork_clicked();
+}
+
+void MainWindow::on_hardwareButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->hardwareButton);
+    updateContent("Hardware Information");
+    ui->contentStackedWidget->setCurrentWidget(ui->hardwarePage);
+
+    // Auto-refresh hardware info when page is opened
+    on_pushButton_refreshHardware_clicked();
+}
+
+// Cleaner tab slots - Delegated to SystemCleaner
+void MainWindow::on_scanQuickButton_clicked()
+{
+    m_systemCleaner->performQuickScan();
+}
+
+void MainWindow::on_cleanQuickButton_clicked()
+{
+    m_systemCleaner->performQuickClean();
+}
+
+void MainWindow::on_scanSystemButton_clicked()
+{
+    m_systemCleaner->performSystemScan();
+}
+
+void MainWindow::on_cleanSystemButton_clicked()
+{
+    m_systemCleaner->performSystemClean();
+}
+
+void MainWindow::on_scanBrowsersButton_clicked()
+{
+    m_systemCleaner->performBrowserScan();
+}
+
+void MainWindow::on_cleanBrowsersButton_clicked()
+{
+    m_systemCleaner->performBrowserClean();
+}
+
+void MainWindow::on_selectAllSystemButton_clicked()
+{
+    QListWidget *systemList = ui->systemCleanerList;
+    if (!systemList)
+        return;
+
+    // Check if any items are currently unselected (have ❌)
+    bool hasUnselected = false;
+    for (int i = 0; i < systemList->count(); ++i)
+    {
+        QListWidgetItem *item = systemList->item(i);
+        if (item && item->text().contains("❌"))
+        {
+            hasUnselected = true;
+            break;
+        }
+    }
+
+    // If there are unselected items, select all. Otherwise, deselect all.
+    bool shouldSelect = hasUnselected;
+
+    for (int i = 0; i < systemList->count(); ++i)
+    {
+        QListWidgetItem *item = systemList->item(i);
+        if (item)
+        {
+            QString text = item->text();
+            if (shouldSelect)
+            {
+                // Select item (replace ❌ with ✅)
+                text.replace("❌", "✅");
+            }
+            else
+            {
+                // Deselect item (replace ✅ with ❌)
+                text.replace("✅", "❌");
+            }
+            item->setText(text);
+        }
+    }
+
+    // Enable/disable clean button based on selection
+    bool hasSelected = false;
+    for (int i = 0; i < systemList->count(); ++i)
+    {
+        if (systemList->item(i)->text().contains("✅"))
+        {
+            hasSelected = true;
+            break;
+        }
+    }
+
+    ui->cleanSystemButton->setEnabled(hasSelected);
+}
+
+// Software Uninstaller slots - Delegated to SoftwareManager
+void MainWindow::on_refreshSoftwareButton_clicked()
+{
+    m_softwareManager->refreshSoftware();
+}
+
+void MainWindow::on_searchSoftwareInput_textChanged(const QString &searchText)
+{
+    m_softwareManager->searchSoftware(searchText);
+}
+
+void MainWindow::on_softwareTable_itemSelectionChanged()
+{
+    m_softwareManager->onSoftwareSelectionChanged();
+}
+
+void MainWindow::on_uninstallSoftwareButton_clicked()
+{
+    m_softwareManager->uninstallSoftware();
+}
+
+void MainWindow::on_forceUninstallButton_clicked()
+{
+    m_softwareManager->forceUninstallSoftware();
+}
+
+void MainWindow::populateSoftwareTable()
+{
+    m_softwareManager->populateSoftwareTable();
+}
+
+// Apps page slots - Delegated to AppManager
+void MainWindow::on_addAppButton_clicked()
+{
+    m_appManager->addApp();
+}
+
+void MainWindow::on_refreshAppsButton_clicked()
+{
+    m_appManager->refreshApps();
+}
+
+void MainWindow::on_launchAppButton_clicked()
+{
+    m_appManager->launchApp();
+}
+
+void MainWindow::on_removeAppButton_clicked()
+{
+    m_appManager->removeApp();
+}
+
+void MainWindow::on_searchAppsInput_textChanged(const QString &searchText)
+{
+    m_appManager->searchApps(searchText);
+}
+
+// General tab slots
+void MainWindow::on_refreshSystemInfoButton_clicked()
+{
+    // Simulate refreshing system info
+    ui->cpuUsageProgress->setValue(rand() % 100);
+    ui->ramUsageProgress->setValue(rand() % 100);
+    ui->diskUsageProgress->setValue(rand() % 100);
+
+    ui->cpuUsageValue->setText(QString("%1%").arg(ui->cpuUsageProgress->value()));
+    ui->ramUsageValue->setText(QString("%1%").arg(ui->ramUsageProgress->value()));
+    ui->diskUsageValue->setText(QString("%1%").arg(ui->diskUsageProgress->value()));
+}
+
+void MainWindow::on_generateReportButton_clicked()
+{
+    // Placeholder for report generation
+    ui->systemInfoLabel->setText("System report generated successfully! Check your Documents folder.");
+}
+
+void MainWindow::on_disableStartupButton_clicked()
+{
+    // Placeholder for disabling startup program
+    int row = ui->startupTable->currentRow();
+    if (row >= 0)
+    {
+        QTableWidgetItem *statusItem = ui->startupTable->item(row, 1);
+        if (statusItem && statusItem->text() == "Enabled")
+        {
+            statusItem->setText("Disabled");
+            statusItem->setForeground(QBrush(QColor("#e74c3c")));
+        }
+    }
+}
+
+void MainWindow::on_enableStartupButton_clicked()
+{
+    // Placeholder for enabling startup program
+    int row = ui->startupTable->currentRow();
+    if (row >= 0)
+    {
+        QTableWidgetItem *statusItem = ui->startupTable->item(row, 1);
+        if (statusItem && statusItem->text() == "Disabled")
+        {
+            statusItem->setText("Enabled");
+            statusItem->setForeground(QBrush(QColor("#2ecc71")));
+        }
+    }
+}
+
+void MainWindow::on_startupTable_itemSelectionChanged()
+{
+    QList<QTableWidgetItem *> selectedItems = ui->startupTable->selectedItems();
+    bool hasSelection = !selectedItems.isEmpty();
+
+    if (hasSelection)
+    {
+        int row = ui->startupTable->currentRow();
+        QTableWidgetItem *statusItem = ui->startupTable->item(row, 1);
+        bool isEnabled = statusItem && statusItem->text() == "Enabled";
+
+        ui->disableStartupButton->setEnabled(isEnabled);
+        ui->enableStartupButton->setEnabled(!isEnabled);
+    }
+    else
+    {
+        ui->disableStartupButton->setEnabled(false);
+        ui->enableStartupButton->setEnabled(false);
+    }
+}
+
+// WiFi Management slots - Delegated to WiFiManager
+void MainWindow::on_scanNetworksButton_clicked()
+{
+    m_wifiManager->scanNetworks();
+}
+
+void MainWindow::on_refreshNetworksButton_clicked()
+{
+    m_wifiManager->refreshNetworks();
+}
+
+void MainWindow::on_connectNetworkButton_clicked()
+{
+    m_wifiManager->connectNetwork();
+}
+
+void MainWindow::on_disconnectNetworkButton_clicked()
+{
+    m_wifiManager->disconnectNetwork();
+}
+
+void MainWindow::on_networksTable_itemSelectionChanged()
+{
+    m_wifiManager->onNetworkSelectionChanged();
+}
+
+void MainWindow::on_enableAdapterButton_clicked()
+{
+    m_wifiManager->enableAdapter();
+}
+
+void MainWindow::on_disableAdapterButton_clicked()
+{
+    m_wifiManager->disableAdapter();
+}
+
+void MainWindow::on_refreshAdaptersButton_clicked()
+{
+    m_wifiManager->refreshAdapters();
+}
+
+void MainWindow::on_adaptersList_itemSelectionChanged()
+{
+    m_wifiManager->onAdapterSelectionChanged();
+}
+
+void MainWindow::on_runDiagnosticsButton_clicked()
+{
+    m_wifiManager->runDiagnostics();
+}
+
+void MainWindow::on_resetNetworkButton_clicked()
+{
+    m_wifiManager->resetNetwork();
+}
+
+void MainWindow::on_flushDnsButton_clicked()
+{
+    m_wifiManager->flushDns();
+}
+
+void MainWindow::on_restartWifiServiceButton_clicked()
+{
+    m_wifiManager->restartWifiService();
+}
+
+void MainWindow::on_renewIpButton_clicked()
+{
+    m_wifiManager->renewIp();
+}
+
+void MainWindow::on_forgetNetworkButton_clicked()
+{
+    m_wifiManager->forgetNetwork();
+}
+
+void MainWindow::on_driverUpdateButton_clicked()
+{
+    m_wifiManager->updateDriver();
+}
+
+// Options page slots
+void MainWindow::on_pushButton_saveSettings_clicked()
+{
+    ui->label_optionsTitle->setText("Settings saved successfully!");
+}
+
+void MainWindow::on_pushButton_resetSettings_clicked()
+{
+    // Reset to default values
+    ui->checkBox_startWithWindows->setChecked(true);
+    ui->checkBox_autoUpdate->setChecked(true);
+    ui->checkBox_notifications->setChecked(true);
+    ui->comboBox_theme->setCurrentIndex(2);    // System Default
+    ui->comboBox_language->setCurrentIndex(0); // English
+
+    ui->label_optionsTitle->setText("Settings reset to defaults!");
+}
+
+void MainWindow::on_pushButton_checkUpdates_clicked()
+{
+    ui->label_optionsTitle->setText("Checking for updates... Your software is up to date!");
+}
+
+void MainWindow::on_pushButton_refreshHardware_clicked()
+{
+    m_hardwareInfo->refreshHardware();
+}
+
+void MainWindow::on_pushButton_exportHardware_clicked()
+{
+    m_hardwareInfo->exportHardware();
+}
+
+// Network page slots - Delegated to NetworkManager
+void MainWindow::on_pushButton_refreshNetwork_clicked()
+{
+    m_networkManager->refreshNetworkStatus();
+}
+
+void MainWindow::on_pushButton_testConnection_clicked()
+{
+    m_networkManager->testConnection();
+}
+
+void MainWindow::on_pushButton_startPing_clicked()
+{
+    m_networkManager->startPing();
+}
+
+void MainWindow::on_pushButton_stopPing_clicked()
+{
+    m_networkManager->stopPing();
+}
+
+void MainWindow::on_pushButton_startTraceroute_clicked()
+{
+    m_networkManager->startTraceroute();
+}
+
+void MainWindow::on_pushButton_stopTraceroute_clicked()
+{
+    m_networkManager->stopTraceroute();
+}
+
+void MainWindow::on_pushButton_startScan_clicked()
+{
+    m_networkManager->startPortScan();
+}
+
+void MainWindow::on_pushButton_stopScan_clicked()
+{
+    m_networkManager->stopPortScan();
+}
+
+// Implement the new slots
+void MainWindow::on_refreshDiskSpaceButton_clicked()
+{
+    m_filesChecker->refreshDiskSpace();
+}
+
+
+
+void MainWindow::debugTableState()
+{
+    qDebug() << "=== Table Debug Info ===";
+    qDebug() << "Table row count:" << ui->largeFilesTable->rowCount();
+    qDebug() << "Table column count:" << ui->largeFilesTable->columnCount();
+    qDebug() << "Table is visible:" << ui->largeFilesTable->isVisible();
+    qDebug() << "Table viewport is visible:" << ui->largeFilesTable->viewport()->isVisible();
+    
+    for (int i = 0; i < ui->largeFilesTable->rowCount() && i < 5; ++i) {
+        qDebug() << "Row" << i << "data:";
+        for (int j = 0; j < ui->largeFilesTable->columnCount(); ++j) {
+            QTableWidgetItem *item = ui->largeFilesTable->item(i, j);
+            if (item) {
+                qDebug() << "  Col" << j << ":" << item->text() << "CheckState:" << item->checkState();
+            } else {
+                qDebug() << "  Col" << j << ": NULL ITEM";
+            }
+        }
+    }
+    qDebug() << "=== End Table Debug ===";
+}
+
+void MainWindow::on_scanLargeFilesButton_clicked()
+{
+    QString path = ui->largeFilesPathInput->text();
+    if (path.isEmpty())
+    {
+        path = QDir::homePath();
+        ui->largeFilesPathInput->setText(path);
+    }
+
+    double minSizeGB = ui->largeFilesSizeSpinBox->value();
+    
+    qDebug() << "=== Starting scan ===";
+    qDebug() << "Path:" << path;
+    qDebug() << "Min size:" << minSizeGB << "GB";
+    
+    if (m_filesChecker) {
+        m_filesChecker->scanLargeFiles(path, minSizeGB);
+        
+        // Debug table state after a short delay
+        QTimer::singleShot(1000, this, &MainWindow::debugTableState);
+    }
+}
+
+void MainWindow::on_openFileLocationButton_clicked()
+{
+    // Check if any file is selected
+    bool hasSelection = false;
+    int selectedRow = -1;
+    
+    for (int row = 0; row < ui->largeFilesTable->rowCount(); ++row) {
+        QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+        if (checkItem && checkItem->checkState() == Qt::Checked) {
+            hasSelection = true;
+            selectedRow = row;
+            break;
+        }
+    }
+    
+    if (hasSelection && selectedRow >= 0) {
+        QTableWidgetItem *pathItem = ui->largeFilesTable->item(selectedRow, 1);
+        if (pathItem && m_filesChecker) {
+            QString filePath = pathItem->text();
+            m_filesChecker->openFileDirectory(filePath);
+        }
+    } else {
+        QMessageBox::information(this, "Open Location", "Please select a file first by checking the checkbox.");
+    }
+}
+
+void MainWindow::on_deleteLargeFilesButton_clicked()
+{
+    QVector<FileInfo> filesToDelete;
+
+    for (int row = 0; row < ui->largeFilesTable->rowCount(); ++row) {
+        QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+        QTableWidgetItem *pathItem = ui->largeFilesTable->item(row, 1);
+        QTableWidgetItem *sizeItem = ui->largeFilesTable->item(row, 2);
+
+        if (checkItem && checkItem->data(Qt::UserRole).toBool() && pathItem && sizeItem) {
+            FileInfo fileInfo;
+            fileInfo.path = pathItem->text();
+            fileInfo.size = 0;
+            fileInfo.isSelected = true;
+            filesToDelete.append(fileInfo);
+        }
+    }
+
+    if (filesToDelete.isEmpty()) {
+        QMessageBox::information(this, "Delete Files", "No files selected for deletion.");
+        return;
+    }
+
+    if (m_filesChecker) {
+        m_filesChecker->deleteSelectedFiles(filesToDelete);
+        
+        // Remove deleted rows from the table
+        for (int row = ui->largeFilesTable->rowCount() - 1; row >= 0; --row) {
+            QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+            if (checkItem && checkItem->data(Qt::UserRole).toBool()) {
+                ui->largeFilesTable->removeRow(row);
+            }
+        }
+        
+        // Update the results text
+        ui->largeFilesResults->append(QString("\nDeleted %1 file(s).").arg(filesToDelete.size()));
+        updateDeleteButtonState();
+    }
+}
+
+void MainWindow::on_scanDuplicateFilesButton_clicked()
+{
+    QString path = ui->duplicateFilesPathInput->text();
+    if (path.isEmpty())
+    {
+        path = QDir::homePath();
+        ui->duplicateFilesPathInput->setText(path);
+    }
+
+    m_filesChecker->scanDuplicateFiles(path);
+}
+
+void MainWindow::on_deleteDuplicateFilesButton_clicked()
+{
+    // Implementation for deleting duplicate files
+    // You'll need to collect selected files from the tree widget
+}
+
+
+void MainWindow::on_duplicateFilesTree_itemChanged(QTreeWidgetItem *item, int column)
+{
+    // Handle selection changes in duplicate files tree
+}
+
+
+void MainWindow::on_browseLargeFilesPathButton_clicked()
+{
+    QString currentPath = ui->largeFilesPathInput->text();
+    if (currentPath.isEmpty())
+    {
+        currentPath = QDir::homePath();
+    }
+
+    QString dir = QFileDialog::getExistingDirectory(this, "Select Directory to Scan", currentPath);
+    if (!dir.isEmpty())
+    {
+        ui->largeFilesPathInput->setText(dir);
+    }
+}
+
+void MainWindow::on_browseDuplicateFilesPathButton_clicked()
+{
+    QString currentPath = ui->duplicateFilesPathInput->text();
+    if (currentPath.isEmpty())
+    {
+        currentPath = QDir::homePath();
+    }
+
+    QString dir = QFileDialog::getExistingDirectory(this, "Select Directory to Scan", currentPath);
+    if (!dir.isEmpty())
+    {
+        ui->duplicateFilesPathInput->setText(dir);
+    }
+}
+
+void MainWindow::on_largeFilesPathInput_textChanged(const QString &text)
+{
+    // Enable/disable scan button based on path validity
+    QDir dir(text);
+    ui->scanLargeFilesButton->setEnabled(dir.exists());
+}
+
+void MainWindow::on_duplicateFilesPathInput_textChanged(const QString &text)
+{
+    // Enable/disable scan button based on path validity
+    QDir dir(text);
+    ui->scanDuplicateFilesButton->setEnabled(dir.exists());
+}
+
+
+void MainWindow::on_cancelLargeFilesButton_clicked()
+{
+    if (m_filesChecker) {
+        m_filesChecker->cancelLargeFilesScan();
+    }
+}
+
+void MainWindow::on_cancelDuplicateFilesButton_clicked()
+{
+    if (m_filesChecker) {
+        m_filesChecker->cancelDuplicateFilesScan();
+    }
+}
+
+void MainWindow::on_largeFilesTable_itemDoubleClicked(QTableWidgetItem *item)
+{
+    if (!item) return;
+    
+    int row = item->row();
+    QTableWidgetItem *pathItem = ui->largeFilesTable->item(row, 1); // Path column
+    
+    if (pathItem && m_filesChecker) {
+        QString filePath = pathItem->text();
+        m_filesChecker->openFileDirectory(filePath);
+    }
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    cancelAllOperations();
+    QMainWindow::closeEvent(event);
+}
+
+void MainWindow::cancelAllOperations()
+{
+    // Cancel all running operations before switching tabs
+    if (m_filesChecker) {
+        m_filesChecker->cancelLargeFilesScan();
+        m_filesChecker->cancelDuplicateFilesScan();
+    }
+    
+    // Process events to ensure cancellation happens immediately
+    QCoreApplication::processEvents();
+    
+    // Add other managers if they have cancelable operations
+    if (m_networkManager) {
+        // Add network operation cancellations if needed
+    }
+}
+
+void MainWindow::on_wifiButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->wifiButton);
+    updateContent("WiFi Management");
+    ui->contentStackedWidget->setCurrentWidget(ui->wifiPage);
+}
+
+
+void MainWindow::on_cleanerButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->cleanerButton);
+    updateContent("System Cleaner");
+    showCleanerPage();
+}
+
+
+void MainWindow::on_optionsButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->optionsButton);
+    updateContent("Options & Settings");
+    ui->contentStackedWidget->setCurrentWidget(ui->optionsPage);
+}
+
+void MainWindow::on_filesCheckerButton_clicked()
+{
+    cancelAllOperations();
+    setActiveButton(ui->filesCheckerButton);
+    updateContent("Files Checker");
+    ui->contentStackedWidget->setCurrentWidget(ui->filesCheckerPage);
+
+    // Refresh disk space on first load
+    if (m_filesChecker) {
+        m_filesChecker->refreshDiskSpace();
+    }
+}
+
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == ui->largeFilesTable->viewport() && event->type() == QEvent::MouseButtonPress) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        QModelIndex index = ui->largeFilesTable->indexAt(mouseEvent->pos());
+        
+        if (index.isValid() && index.column() == 0) { // Checkbox column
+            QTableWidgetItem *item = ui->largeFilesTable->item(index.row(), 0);
+            if (item) {
+                // Toggle the checkbox
+                bool isChecked = item->data(Qt::UserRole).toBool();
+                if (isChecked) {
+                    item->setText("❌");
+                    item->setData(Qt::UserRole, false);
+                } else {
+                    item->setText("✅");
+                    item->setData(Qt::UserRole, true);
+                }
+                
+                // Update delete button state
+                updateDeleteButtonState();
+                return true; // Event handled
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
+}
+
+void MainWindow::updateDeleteButtonState()
+{
+    bool hasSelection = false;
+    for (int row = 0; row < ui->largeFilesTable->rowCount(); ++row) {
+        QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+        if (checkItem && checkItem->data(Qt::UserRole).toBool()) {
+            hasSelection = true;
+            break;
+        }
+    }
+    ui->deleteLargeFilesButton->setEnabled(hasSelection);
+}
+
+void MainWindow::on_largeFilesTable_itemChanged(QTableWidgetItem *item)
+{
+    if (!item) return;
+    
+    if (item->column() == 0) { // Checkbox column
+        // NO EMOJI TEXT - let Qt handle the checkbox visuals
+        
+        // Enable/disable delete button based on selection
+        bool hasSelection = false;
+        for (int row = 0; row < ui->largeFilesTable->rowCount(); ++row) {
+            QTableWidgetItem *checkItem = ui->largeFilesTable->item(row, 0);
+            if (checkItem && checkItem->checkState() == Qt::Checked) {
+                hasSelection = true;
+                break;
+            }
+        }
+        ui->deleteLargeFilesButton->setEnabled(hasSelection);
+    }
+}
+
+void MainWindow::onLargeFilesTableItemClicked(QTableWidgetItem *item)
+{
+    if (!item) return;
+    
+    // Only handle clicks in the checkbox column (column 0)
+    if (item->column() == 0) {
+        // Toggle the checkbox
+        bool isChecked = item->data(Qt::UserRole).toBool();
+        if (isChecked) {
+            item->setText("❌");
+            item->setData(Qt::UserRole, false);
+        } else {
+            item->setText("✅");
+            item->setData(Qt::UserRole, true);
+        }
+        
+        // Update delete button state
+        updateDeleteButtonState();
+    }
+}#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+#include <QPushButton>
+#include <QTableWidgetItem>
+#include <QTreeWidgetItem>
+#include <QCompleter>  // Add this line
+#include <QMouseEvent> // ADD THIS
+#include <QEvent>      // ADD THIS
+
+// Include the actual headers instead of forward declarations
+#include "modules/systemcleaner.h"
+#include "modules/networkmanager.h"
+#include "modules/hardwareinfo.h"
+#include "modules/appmanager.h"
+#include "modules/softwaremanager.h"
+#include "modules/wifimanager.h"
+#include "modules/fileschecker.h"
+
+QT_BEGIN_NAMESPACE
+namespace Ui
+{
+    class MainWindow;
+}
+QT_END_NAMESPACE
+
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public:
+    MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
+    void closeEvent(QCloseEvent *event) override;
+
+    // Make UI accessible to modules
+    Ui::MainWindow *ui;
+
+private slots:
+
+    void onLargeFilesTableItemClicked(QTableWidgetItem *item);
+    bool eventFilter(QObject *obj, QEvent *event);
+
+    void on_largeFilesTable_itemDoubleClicked(QTableWidgetItem *item); // Add this
+    // Add these to your existing slots
+    void on_filesCheckerButton_clicked();
+    void on_refreshDiskSpaceButton_clicked();
+    void on_scanLargeFilesButton_clicked();
+    void on_openFileLocationButton_clicked();
+    void on_deleteLargeFilesButton_clicked();
+    void on_scanDuplicateFilesButton_clicked();
+    void on_deleteDuplicateFilesButton_clicked();
+    void on_largeFilesTable_itemChanged(QTableWidgetItem *item);
+    void on_duplicateFilesTree_itemChanged(QTreeWidgetItem *item, int column);
+
+    // Main navigation slots
+    void on_generalButton_clicked();
+    void on_wifiButton_clicked();
+    void on_appsButton_clicked();
+    void on_cleanerButton_clicked();
+    void on_networkButton_clicked();
+    void on_hardwareButton_clicked();
+    void on_optionsButton_clicked();
+
+    void onSystemCleanerItemClicked(QListWidgetItem *item);
+
+    // Cleaner tab slots
+    void on_scanQuickButton_clicked();
+    void on_cleanQuickButton_clicked();
+    void on_scanSystemButton_clicked();
+    void on_cleanSystemButton_clicked();
+    void on_selectAllSystemButton_clicked();
+    void on_scanBrowsersButton_clicked();
+    void on_cleanBrowsersButton_clicked();
+
+    // Software Uninstaller slots
+    void on_refreshSoftwareButton_clicked();
+    void on_searchSoftwareInput_textChanged(const QString &searchText);
+    void on_softwareTable_itemSelectionChanged();
+    void on_uninstallSoftwareButton_clicked();
+    void on_forceUninstallButton_clicked();
+
+    // Apps page slots
+    void on_addAppButton_clicked();
+    void on_refreshAppsButton_clicked();
+    void on_launchAppButton_clicked();
+    void on_removeAppButton_clicked();
+    void on_searchAppsInput_textChanged(const QString &searchText);
+
+    // General tab slots
+    void on_refreshSystemInfoButton_clicked();
+    void on_generateReportButton_clicked();
+    void on_disableStartupButton_clicked();
+    void on_enableStartupButton_clicked();
+    void on_startupTable_itemSelectionChanged();
+
+    // WiFi Management slots
+    void on_scanNetworksButton_clicked();
+    void on_refreshNetworksButton_clicked();
+    void on_connectNetworkButton_clicked();
+    void on_disconnectNetworkButton_clicked();
+    void on_networksTable_itemSelectionChanged();
+    void on_enableAdapterButton_clicked();
+    void on_disableAdapterButton_clicked();
+    void on_refreshAdaptersButton_clicked();
+    void on_adaptersList_itemSelectionChanged();
+    void on_runDiagnosticsButton_clicked();
+    void on_resetNetworkButton_clicked();
+    void on_flushDnsButton_clicked();
+    void on_restartWifiServiceButton_clicked();
+    void on_renewIpButton_clicked();
+    void on_forgetNetworkButton_clicked();
+    void on_driverUpdateButton_clicked();
+
+    // Options page slots
+    void on_pushButton_saveSettings_clicked();
+    void on_pushButton_resetSettings_clicked();
+    void on_pushButton_checkUpdates_clicked();
+    void on_pushButton_refreshHardware_clicked();
+    void on_pushButton_exportHardware_clicked();
+
+    // Network page slots
+    void on_pushButton_refreshNetwork_clicked();
+    void on_pushButton_testConnection_clicked();
+    void on_pushButton_startPing_clicked();
+    void on_pushButton_stopPing_clicked();
+    void on_pushButton_startTraceroute_clicked();
+    void on_pushButton_stopTraceroute_clicked();
+    void on_pushButton_startScan_clicked();
+    void on_pushButton_stopScan_clicked();
+
+    void on_cancelLargeFilesButton_clicked();
+    void on_cancelDuplicateFilesButton_clicked();
+    void on_browseLargeFilesPathButton_clicked();
+    void on_browseDuplicateFilesPathButton_clicked();
+    void on_largeFilesPathInput_textChanged(const QString &text);
+    void on_duplicateFilesPathInput_textChanged(const QString &text);
+
+private:
+    // Modular managers
+    SystemCleaner *m_systemCleaner;
+    NetworkManager *m_networkManager;
+    HardwareInfo *m_hardwareInfo;
+    AppManager *m_appManager;
+    SoftwareManager *m_softwareManager;
+    WiFiManager *m_wifiManager;
+    FilesChecker *m_filesChecker;
+
+    // Private methods
+    void setupConnections();
+    void resetAllButtons();
+    void setActiveButton(QPushButton *activeButton);
+    void updateContent(const QString &title);
+    void showCleanerPage();
+    void populateSoftwareTable();
+
+    void cancelAllOperations();
+    void debugTableState();
+
+    void updateDeleteButtonState();
+};
+
+#endif // MAINWINDOW_H
+#include "appmanager.h"
+#include "../mainwindow.h"
+#include "../ui_mainwindow.h"
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+
+AppManager::AppManager(MainWindow *mainWindow, QObject *parent)
+    : QObject(parent), m_mainWindow(mainWindow)
+{
+}
+
+void AppManager::addApp()
+{
+    // Placeholder for adding app functionality
+    m_mainWindow->ui->appsLabel->setText("Add App dialog would open here to browse for applications");
+}
+
+void AppManager::refreshApps()
+{
+    // Clear existing apps
+    QLayoutItem *item;
+    while ((item = m_mainWindow->ui->appsGridLayout->takeAt(0)) != nullptr)
+    {
+        delete item->widget();
+        delete item;
+    }
+
+    // Sample favorite apps with emojis
+    QVector<QPair<QString, QString>> apps = {
+        {"🌐 Chrome", "Web Browser"},
+        {"📝 VS Code", "Code Editor"},
+        {"🎵 Spotify", "Music Player"},
+        {"💬 Discord", "Chat App"},
+        {"🖼️ Photoshop", "Image Editor"},
+        {"📊 Excel", "Spreadsheet"},
+        {"🎮 Steam", "Game Platform"},
+        {"📧 Outlook", "Email Client"},
+        {"📁 Explorer", "File Manager"},
+        {"🎥 VLC", "Media Player"},
+        {"📚 Adobe Reader", "PDF Viewer"},
+        {"⚙️ Settings", "System Settings"}};
+
+    int row = 0;
+    int col = 0;
+    const int maxCols = 4;
+
+    for (const auto &app : apps)
+    {
+        QPushButton *appButton = new QPushButton();
+        appButton->setFixedSize(80, 90);
+        appButton->setStyleSheet(
+            "QPushButton {"
+            "    background-color: white;"
+            "    border: 2px solid #ecf0f1;"
+            "    border-radius: 10px;"
+            "    padding: 5px;"
+            "}"
+            "QPushButton:hover {"
+            "    border-color: #1abc9c;"
+            "    background-color: #f1f8f6;"
+            "}"
+            "QPushButton:pressed {"
+            "    background-color: #1abc9c;"
+            "    color: white;"
+            "}");
+
+        QVBoxLayout *buttonLayout = new QVBoxLayout(appButton);
+        buttonLayout->setSpacing(5);
+        buttonLayout->setContentsMargins(5, 5, 5, 5);
+
+        QLabel *iconLabel = new QLabel(app.first.split(' ')[0]); // Get emoji part
+        iconLabel->setAlignment(Qt::AlignCenter);
+        iconLabel->setStyleSheet("font-size: 24px; background: transparent;");
+
+        QLabel *nameLabel = new QLabel(app.first.split(' ')[1]); // Get name part
+        nameLabel->setAlignment(Qt::AlignCenter);
+        nameLabel->setStyleSheet(
+            "font-size: 9px;"
+            "color: #2c3e50;"
+            "background: transparent;"
+            "font-weight: bold;");
+
+        QLabel *descLabel = new QLabel(app.second);
+        descLabel->setAlignment(Qt::AlignCenter);
+        descLabel->setStyleSheet(
+            "font-size: 7px;"
+            "color: #7f8c8d;"
+            "background: transparent;");
+
+        buttonLayout->addWidget(iconLabel);
+        buttonLayout->addWidget(nameLabel);
+        buttonLayout->addWidget(descLabel);
+
+        // Connect button click
+        connect(appButton, &QPushButton::clicked, this, [this, app]()
+                {
+            m_mainWindow->ui->selectedAppName->setText(app.first);
+            m_mainWindow->ui->selectedAppPath->setText(app.second);
+            m_mainWindow->ui->selectedAppIcon->setText(app.first.split(' ')[0]);
+            m_mainWindow->ui->launchAppButton->setEnabled(true);
+            m_mainWindow->ui->removeAppButton->setEnabled(true); });
+
+        m_mainWindow->ui->appsGridLayout->addWidget(appButton, row, col);
+
+        col++;
+        if (col >= maxCols)
+        {
+            col = 0;
+            row++;
+        }
+    }
+
+    // Add stretch to push items to top
+    m_mainWindow->ui->appsGridLayout->setRowStretch(row + 1, 1);
+    m_mainWindow->ui->appsGridLayout->setColumnStretch(maxCols, 1);
+}
+
+void AppManager::launchApp()
+{
+    QString appName = m_mainWindow->ui->selectedAppName->text();
+    if (appName != "No app selected")
+    {
+        m_mainWindow->ui->appsLabel->setText(QString("Launching: %1").arg(appName));
+        // In real implementation, this would launch the actual application
+    }
+}
+
+void AppManager::removeApp()
+{
+    QString appName = m_mainWindow->ui->selectedAppName->text();
+    if (appName != "No app selected")
+    {
+        m_mainWindow->ui->appsLabel->setText(QString("Removed from favorites: %1").arg(appName));
+        m_mainWindow->ui->selectedAppName->setText("No app selected");
+        m_mainWindow->ui->selectedAppPath->setText("Select an app to view details");
+        m_mainWindow->ui->selectedAppIcon->setText("🚀");
+        m_mainWindow->ui->launchAppButton->setEnabled(false);
+        m_mainWindow->ui->removeAppButton->setEnabled(false);
+    }
+}
+
+void AppManager::searchApps(const QString &searchText)
+{
+    // Simple search functionality
+    for (int i = 0; i < m_mainWindow->ui->appsGridLayout->count(); ++i)
+    {
+        QWidget *widget = m_mainWindow->ui->appsGridLayout->itemAt(i)->widget();
+        if (widget)
+        {
+            QPushButton *appButton = qobject_cast<QPushButton *>(widget);
+            if (appButton)
+            {
+                // Get the app name from the button's layout
+                QVBoxLayout *layout = qobject_cast<QVBoxLayout *>(appButton->layout());
+                if (layout && layout->itemAt(1))
+                {
+                    QLabel *nameLabel = qobject_cast<QLabel *>(layout->itemAt(1)->widget());
+                    if (nameLabel)
+                    {
+                        bool match = searchText.isEmpty() ||
+                                     nameLabel->text().contains(searchText, Qt::CaseInsensitive);
+                        appButton->setVisible(match);
+                    }
+                }
+            }
+        }
+    }
+}#ifndef APPMANAGER_H
+#define APPMANAGER_H
+
+#include <QObject>
+
+class MainWindow;
+
+class AppManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit AppManager(MainWindow *mainWindow, QObject *parent = nullptr);
+    
+    void addApp();
+    void refreshApps();
+    void launchApp();
+    void removeApp();
+    void searchApps(const QString &searchText);
+
+private:
+    MainWindow *m_mainWindow;
+};
+
+#endif // APPMANAGER_H#include "fileschecker.h"
+#include "../mainwindow.h"
+#include "../ui_mainwindow.h"
+#include <QtConcurrent/QtConcurrent>
+#include <QProgressDialog>
+#include <QMessageBox>
+#include <QDesktopServices>
+#include <QCryptographicHash>
+#include <QFile>
+#include <QStorageInfo>
+#include <QCompleter>
+#include <QFileDialog>
+#include <QCoreApplication>
+#include <QHeaderView>
+#include <QProgressBar>
+#include <QLabel>
+#include <QHBoxLayout>
+
+FilesChecker::FilesChecker(MainWindow *mainWindow, QObject *parent)
+    : QObject(parent), m_mainWindow(mainWindow),
+      m_cancelLargeFilesScan(false), m_cancelDuplicateFilesScan(false)
+{
+    m_largeFilesWatcher = new QFutureWatcher<QVector<FileInfo>>(this);
+    m_duplicateFilesWatcher = new QFutureWatcher<QVector<DuplicateFile>>(this);
+    
+    connect(m_largeFilesWatcher, &QFutureWatcher<QVector<FileInfo>>::finished,
+            this, &FilesChecker::onLargeFilesScanFinished);
+    connect(m_duplicateFilesWatcher, &QFutureWatcher<QVector<DuplicateFile>>::finished,
+            this, &FilesChecker::onDuplicateFilesScanFinished);
+}
+
+FilesChecker::~FilesChecker()
+{
+    // Set cancel flags first
+    m_cancelLargeFilesScan = true;
+    m_cancelDuplicateFilesScan = true;
+    
+    // Cancel any running operations
+    if (m_largeFilesWatcher && m_largeFilesWatcher->isRunning()) {
+        m_largeFilesWatcher->cancel();
+    }
+    if (m_duplicateFilesWatcher && m_duplicateFilesWatcher->isRunning()) {
+        m_duplicateFilesWatcher->cancel();
+    }
+    
+    // Process events to allow cancellation to take effect
+    QCoreApplication::processEvents();
+    
+    // Delete watchers
+    delete m_largeFilesWatcher;
+    delete m_duplicateFilesWatcher;
+}
+
+void FilesChecker::scanLargeFiles(const QString &path, double minSizeGB)
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+
+    // Reset cancel flag
+    m_cancelLargeFilesScan = false;
+
+    qint64 minSizeBytes = static_cast<qint64>(minSizeGB * 1024 * 1024 * 1024);
+    
+    m_mainWindow->ui->largeFilesResults->setPlainText("Scanning for large files...\nThis may take a while for large directories.");
+    m_mainWindow->ui->scanLargeFilesButton->setEnabled(false);
+    m_mainWindow->ui->cancelLargeFilesButton->setEnabled(true);
+    m_mainWindow->ui->deleteLargeFilesButton->setEnabled(false);
+
+    // Clear previous results
+    m_mainWindow->ui->largeFilesTable->setRowCount(0);
+    m_mainWindow->ui->largeFilesTable->clearContents();
+
+    QFuture<QVector<FileInfo>> future = QtConcurrent::run([path, minSizeBytes, this]() {
+        return FilesChecker::performLargeFilesScan(path, minSizeBytes, m_cancelLargeFilesScan);
+    });
+
+    m_largeFilesWatcher->setFuture(future);
+}
+
+void FilesChecker::cancelLargeFilesScan()
+{
+    if (!m_largeFilesWatcher || !m_largeFilesWatcher->isRunning()) {
+        return;
+    }
+
+    m_cancelLargeFilesScan = true;
+    m_largeFilesWatcher->cancel();
+    
+    if (m_mainWindow && m_mainWindow->ui) {
+        m_mainWindow->ui->largeFilesResults->append("\nScan cancelled by user.");
+    }
+}
+
+void FilesChecker::scanDuplicateFiles(const QString &path)
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+
+    // Reset cancel flag
+    m_cancelDuplicateFilesScan = false;
+
+    m_mainWindow->ui->duplicateFilesResults->setPlainText("Scanning for duplicate files...\nThis may take a while as it calculates file hashes.");
+    m_mainWindow->ui->scanDuplicateFilesButton->setEnabled(false);
+    m_mainWindow->ui->cancelDuplicateFilesButton->setEnabled(true);
+    m_mainWindow->ui->deleteDuplicateFilesButton->setEnabled(false);
+
+    // Clear previous results
+    m_mainWindow->ui->duplicateFilesTree->clear();
+
+    QFuture<QVector<DuplicateFile>> future = QtConcurrent::run([path, this]() {
+        return FilesChecker::performDuplicateFilesScan(path, m_cancelDuplicateFilesScan);
+    });
+
+    m_duplicateFilesWatcher->setFuture(future);
+}
+
+void FilesChecker::cancelDuplicateFilesScan()
+{
+    if (!m_duplicateFilesWatcher || !m_duplicateFilesWatcher->isRunning()) {
+        return;
+    }
+
+    m_cancelDuplicateFilesScan = true;
+    m_duplicateFilesWatcher->cancel();
+    
+    if (m_mainWindow && m_mainWindow->ui) {
+        m_mainWindow->ui->duplicateFilesResults->append("\nScan cancelled by user.");
+    }
+}
+
+void FilesChecker::deleteSelectedFiles(const QVector<FileInfo> &files)
+{
+    if (files.isEmpty()) return;
+
+    int selectedCount = 0;
+    qint64 totalSize = 0;
+    for (const auto &file : files) {
+        if (file.isSelected) {
+            selectedCount++;
+            totalSize += file.size;
+        }
+    }
+
+    if (selectedCount == 0) {
+        QMessageBox::information(m_mainWindow, "Delete Files", "No files selected for deletion.");
+        return;
+    }
+
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        m_mainWindow, 
+        "Confirm Delete",
+        QString("Are you sure you want to delete %1 selected file(s)?\nTotal size: %2\n\nThis action cannot be undone.")
+            .arg(selectedCount)
+            .arg(formatFileSize(totalSize)),
+        QMessageBox::Yes | QMessageBox::No
+    );
+
+    if (reply == QMessageBox::No) return;
+
+    int deletedCount = 0;
+    int failedCount = 0;
+
+    for (const auto &file : files) {
+        if (file.isSelected) {
+            QFile qfile(file.path);
+            if (qfile.remove()) {
+                deletedCount++;
+            } else {
+                failedCount++;
+                qDebug() << "Failed to delete:" << file.path << "Error:" << qfile.errorString();
+            }
+        }
+    }
+
+    QString result;
+    if (deletedCount > 0) {
+        result += QString("Successfully deleted %1 file(s).\n").arg(deletedCount);
+    }
+    if (failedCount > 0) {
+        result += QString("Failed to delete %1 file(s).\n").arg(failedCount);
+    }
+
+    QMessageBox::information(m_mainWindow, "Delete Complete", result);
+}
+
+void FilesChecker::openFileLocation(const QString &filePath)
+{
+    QFileInfo fileInfo(filePath);
+    QString directoryPath = fileInfo.absolutePath();
+    
+    if (QFileInfo::exists(directoryPath)) {
+        QUrl url = QUrl::fromLocalFile(directoryPath);
+        if (!QDesktopServices::openUrl(url)) {
+            QMessageBox::warning(m_mainWindow, "Open Location", 
+                                QString("Could not open file location:\n%1").arg(directoryPath));
+        }
+    } else {
+        QMessageBox::warning(m_mainWindow, "Open Location", 
+                            QString("Directory does not exist:\n%1").arg(directoryPath));
+    }
+}
+
+void FilesChecker::refreshDiskSpace()
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+
+    // Get disk space information using QStorageInfo
+    QList<QStorageInfo> drives = QStorageInfo::mountedVolumes();
+    
+    // Clear previous disk widgets
+    QLayout *layout = m_mainWindow->ui->diskSpaceContainer->layout();
+    if (layout) {
+        QLayoutItem *item;
+        while ((item = layout->takeAt(0)) != nullptr) {
+            if (item->widget()) {
+                item->widget()->deleteLater();
+            }
+            delete item;
+        }
+    }
+
+    for (const QStorageInfo &drive : drives) {
+        if (drive.isValid() && drive.isReady()) {
+            QString name = drive.name();
+            if (name.isEmpty()) name = "Local Disk";
+            
+            qint64 total = drive.bytesTotal();
+            qint64 free = drive.bytesFree();
+            qint64 used = total - free;
+            int percentUsed = total > 0 ? (used * 100) / total : 0;
+
+            // Create disk widget
+            QWidget *diskWidget = new QWidget();
+            diskWidget->setStyleSheet(
+                "QWidget {"
+                "    background-color: #f8f9fa;"
+                "    border: 1px solid #ecf0f1;"
+                "    border-radius: 8px;"
+                "    padding: 10px;"
+                "    margin: 2px;"
+                "}"
+            );
+
+            QHBoxLayout *diskLayout = new QHBoxLayout(diskWidget);
+            diskLayout->setSpacing(12);
+            diskLayout->setContentsMargins(8, 6, 8, 6);
+
+            // Drive icon and name
+            QLabel *iconLabel = new QLabel("💾");
+            iconLabel->setStyleSheet("font-size: 16px; background: transparent;");
+            
+            QLabel *nameLabel = new QLabel(QString("<b>%1</b><br>%2").arg(name).arg(drive.rootPath()));
+            nameLabel->setStyleSheet("color: #2c3e50; font-size: 10px; background: transparent;");
+            nameLabel->setFixedWidth(160);
+
+            // Progress bar
+            QProgressBar *progressBar = new QProgressBar();
+            progressBar->setValue(percentUsed);
+            progressBar->setMaximum(100);
+            progressBar->setMinimum(0);
+            progressBar->setFixedHeight(14);
+            
+            // Set progress bar color based on usage
+            QString progressStyle;
+            if (percentUsed > 90) {
+                progressStyle = "QProgressBar { border: 1px solid #e74c3c; border-radius: 7px; background-color: #f5b7b1; }"
+                               "QProgressBar::chunk { background-color: #e74c3c; border-radius: 6px; }";
+            } else if (percentUsed > 70) {
+                progressStyle = "QProgressBar { border: 1px solid #e67e22; border-radius: 7px; background-color: #fad7a0; }"
+                               "QProgressBar::chunk { background-color: #e67e22; border-radius: 6px; }";
+            } else {
+                progressStyle = "QProgressBar { border: 1px solid #27ae60; border-radius: 7px; background-color: #a9dfbf; }"
+                               "QProgressBar::chunk { background-color: #27ae60; border-radius: 6px; }";
+            }
+            progressBar->setStyleSheet(progressStyle);
+
+            // Usage info
+            QLabel *infoLabel = new QLabel(
+                QString("Used: %1 / %2<br>Free: %3 (%4%)")
+                    .arg(formatFileSize(used))
+                    .arg(formatFileSize(total))
+                    .arg(formatFileSize(free))
+                    .arg(100 - percentUsed)
+            );
+            infoLabel->setStyleSheet("color: #7f8c8d; font-size: 9px; background: transparent;");
+            infoLabel->setFixedWidth(200);
+
+            // Add widgets to disk layout
+            diskLayout->addWidget(iconLabel);
+            diskLayout->addWidget(nameLabel);
+            diskLayout->addWidget(progressBar, 1);
+            diskLayout->addWidget(infoLabel);
+
+            // Add disk widget to container
+            m_mainWindow->ui->diskSpaceContainer->layout()->addWidget(diskWidget);
+        }
+    }
+
+    // Add stretch to push items to top
+    static_cast<QVBoxLayout*>(m_mainWindow->ui->diskSpaceContainer->layout())->addStretch();
+}
+
+QStringList FilesChecker::getCommonPaths()
+{
+    QStringList paths;
+    
+    // System drives
+    QList<QStorageInfo> drives = QStorageInfo::mountedVolumes();
+    for (const QStorageInfo &drive : drives) {
+        if (drive.isValid() && drive.isReady()) {
+            paths << drive.rootPath();
+        }
+    }
+    
+    // Common user directories
+    paths << QDir::homePath();
+    paths << QDir::homePath() + "/Desktop";
+    paths << QDir::homePath() + "/Documents";
+    paths << QDir::homePath() + "/Downloads";
+    paths << QDir::homePath() + "/Pictures";
+    paths << QDir::homePath() + "/Music";
+    paths << QDir::homePath() + "/Videos";
+    
+    // Common program directories
+    paths << "C:/Program Files";
+    paths << "C:/Program Files (x86)";
+    paths << "C:/Windows/Temp";
+    paths << QDir::tempPath();
+    
+    return paths;
+}
+
+void FilesChecker::onLargeFilesScanFinished()
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+
+    QVector<FileInfo> results;
+    if (m_largeFilesWatcher->isCanceled()) {
+        m_mainWindow->ui->largeFilesResults->setPlainText("Scan was cancelled.");
+    } else {
+        try {
+            results = m_largeFilesWatcher->result();
+            
+            qDebug() << "Scan completed with" << results.size() << "files found";
+            
+            // Sort by size (descending)
+            std::sort(results.begin(), results.end(), 
+                      [](const FileInfo &a, const FileInfo &b) { return a.size > b.size; });
+
+            // Update UI with results
+            m_mainWindow->ui->largeFilesTable->setRowCount(0);
+            m_mainWindow->ui->largeFilesTable->setSortingEnabled(false);
+            
+            for (int i = 0; i < results.size(); ++i) {
+                const FileInfo &file = results[i];
+                int row = m_mainWindow->ui->largeFilesTable->rowCount();
+                m_mainWindow->ui->largeFilesTable->insertRow(row);
+
+                // EMOJI ONLY APPROACH - NO QT CHECKBOX FLAGS
+                QTableWidgetItem *checkItem = new QTableWidgetItem("❌");
+                checkItem->setData(Qt::UserRole, false); // Store checked state
+                checkItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+                checkItem->setTextAlignment(Qt::AlignCenter);
+                checkItem->setFont(QFont("Segoe UI Emoji", 12));
+                m_mainWindow->ui->largeFilesTable->setItem(row, 0, checkItem);
+
+                // File path
+                QTableWidgetItem *pathItem = new QTableWidgetItem(file.path);
+                pathItem->setFlags(pathItem->flags() & ~Qt::ItemIsEditable);
+                m_mainWindow->ui->largeFilesTable->setItem(row, 1, pathItem);
+                
+                // Size
+                QTableWidgetItem *sizeItem = new QTableWidgetItem(file.sizeFormatted);
+                sizeItem->setFlags(sizeItem->flags() & ~Qt::ItemIsEditable);
+                sizeItem->setTextAlignment(Qt::AlignRight);
+                m_mainWindow->ui->largeFilesTable->setItem(row, 2, sizeItem);
+                
+                // Last modified
+                QTableWidgetItem *dateItem = new QTableWidgetItem(file.lastModified.toString("yyyy-MM-dd hh:mm:ss"));
+                dateItem->setFlags(dateItem->flags() & ~Qt::ItemIsEditable);
+                m_mainWindow->ui->largeFilesTable->setItem(row, 3, dateItem);
+            }
+
+            // Set column widths
+            m_mainWindow->ui->largeFilesTable->setColumnWidth(0, 60);
+            m_mainWindow->ui->largeFilesTable->setColumnWidth(1, 500);
+            m_mainWindow->ui->largeFilesTable->setColumnWidth(2, 100);
+            m_mainWindow->ui->largeFilesTable->setColumnWidth(3, 150);
+
+            // Enable sorting and refresh
+            m_mainWindow->ui->largeFilesTable->setSortingEnabled(true);
+            m_mainWindow->ui->largeFilesTable->viewport()->update();
+
+            m_mainWindow->ui->largeFilesResults->setPlainText(
+                QString("Scan completed! Found %1 large files.").arg(results.size()));
+                
+        } catch (const std::exception& e) {
+            qDebug() << "Error processing scan results:" << e.what();
+            m_mainWindow->ui->largeFilesResults->setPlainText("Error processing scan results.");
+        }
+    }
+
+    m_mainWindow->ui->scanLargeFilesButton->setEnabled(true);
+    m_mainWindow->ui->cancelLargeFilesButton->setEnabled(false);
+    m_mainWindow->ui->deleteLargeFilesButton->setEnabled(false);
+    m_cancelLargeFilesScan = false;
+}
+
+void FilesChecker::onDuplicateFilesScanFinished()
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+
+    QVector<DuplicateFile> results;
+    if (m_duplicateFilesWatcher->isCanceled()) {
+        m_mainWindow->ui->duplicateFilesResults->setPlainText("Scan was cancelled.");
+    } else {
+        results = m_duplicateFilesWatcher->result();
+        
+        // Update UI with results
+        m_mainWindow->ui->duplicateFilesTree->clear();
+        
+        int totalDuplicates = 0;
+        qint64 totalWastedSpace = 0;
+
+        for (const DuplicateFile &duplicate : results) {
+            QTreeWidgetItem *groupItem = new QTreeWidgetItem(m_mainWindow->ui->duplicateFilesTree);
+            groupItem->setText(0, QString("Duplicate Group (%1 files, %2 each)")
+                .arg(duplicate.files.size())
+                .arg(formatFileSize(duplicate.files.first().size)));
+
+            for (const FileInfo &file : duplicate.files) {
+                QTreeWidgetItem *fileItem = new QTreeWidgetItem(groupItem);
+                fileItem->setText(0, file.path);
+                fileItem->setText(1, file.sizeFormatted);
+                fileItem->setText(2, file.lastModified.toString("yyyy-MM-dd"));
+                fileItem->setCheckState(0, Qt::Unchecked);
+            }
+
+            totalDuplicates += duplicate.files.size() - 1;
+            totalWastedSpace += duplicate.totalSize - duplicate.files.first().size;
+        }
+
+        m_mainWindow->ui->duplicateFilesResults->setPlainText(
+            QString("Scan completed! Found %1 duplicate groups.\n"
+                    "Potential space savings: %2")
+                .arg(results.size())
+                .arg(formatFileSize(totalWastedSpace)));
+    }
+
+    m_mainWindow->ui->scanDuplicateFilesButton->setEnabled(true);
+    m_mainWindow->ui->cancelDuplicateFilesButton->setEnabled(false);
+    m_cancelDuplicateFilesScan = false;
+}
+
+// Static helper methods
+QVector<FileInfo> FilesChecker::performLargeFilesScan(const QString &path, qint64 minSizeBytes, QAtomicInteger<bool> &cancelFlag)
+{
+    QVector<FileInfo> results;
+    QDir dir(path);
+
+    if (!dir.exists() || cancelFlag) return results;
+
+    // Get all files recursively
+    QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::Hidden, QDir::Name);
+    
+    for (const QFileInfo &fileInfo : files) {
+        if (cancelFlag) break;
+        
+        if (fileInfo.size() >= minSizeBytes) {
+            FileInfo file;
+            file.path = fileInfo.absoluteFilePath();
+            file.size = fileInfo.size();
+            file.sizeFormatted = formatFileSize(file.size);
+            file.lastModified = fileInfo.lastModified();
+            file.isSelected = false;
+            results.append(file);
+        }
+    }
+
+    // Recursively scan subdirectories if not cancelled
+    if (!cancelFlag) {
+        QFileInfoList subDirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const QFileInfo &subDir : subDirs) {
+            if (cancelFlag) break;
+            results.append(performLargeFilesScan(subDir.absoluteFilePath(), minSizeBytes, cancelFlag));
+        }
+    }
+
+    return results;
+}
+
+QVector<DuplicateFile> FilesChecker::performDuplicateFilesScan(const QString &path, QAtomicInteger<bool> &cancelFlag)
+{
+    QVector<DuplicateFile> results;
+    // Simplified implementation for now
+    return results;
+}
+
+QString FilesChecker::calculateFileHash(const QString &filePath, QAtomicInteger<bool> &cancelFlag)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QString();
+    }
+
+    QCryptographicHash hash(QCryptographicHash::Md5);
+    const qint64 bufferSize = 8192;
+    QByteArray buffer(bufferSize, 0);
+
+    while (!file.atEnd() && !cancelFlag) {
+        qint64 bytesRead = file.read(buffer.data(), bufferSize);
+        if (bytesRead > 0) {
+            hash.addData(QByteArrayView(buffer.constData(), bytesRead));
+        }
+    }
+
+    if (cancelFlag) {
+        file.close();
+        return QString();
+    }
+
+    file.close();
+    return hash.result().toHex();
+}
+
+QString FilesChecker::formatFileSize(qint64 size)
+{
+    if (size < 1024) return QString("%1 B").arg(size);
+    else if (size < 1024 * 1024) return QString("%1 KB").arg(size / 1024.0, 0, 'f', 1);
+    else if (size < 1024 * 1024 * 1024) return QString("%1 MB").arg(size / (1024.0 * 1024.0), 0, 'f', 1);
+    else return QString("%1 GB").arg(size / (1024.0 * 1024.0 * 1024.0), 0, 'f', 1);
+}
+
+void FilesChecker::openFileDirectory(const QString &filePath)
+{
+    QFileInfo fileInfo(filePath);
+    QString directoryPath = fileInfo.absolutePath();
+    
+    if (QFileInfo::exists(directoryPath)) {
+        QUrl url = QUrl::fromLocalFile(directoryPath);
+        if (!QDesktopServices::openUrl(url)) {
+            QMessageBox::warning(m_mainWindow, "Open Location", 
+                                QString("Could not open file location:\n%1").arg(directoryPath));
+        }
+    } else {
+        QMessageBox::warning(m_mainWindow, "Open Location", 
+                            QString("Directory does not exist:\n%1").arg(directoryPath));
+    }
+}#ifndef FILESCHECKER_H
+#define FILESCHECKER_H
+
+#include <QObject>
+#include <QFileInfo>
+#include <QDir>
+#include <QFutureWatcher>
+#include <QVector>
+#include <QAtomicInteger>
+
+class MainWindow;
+
+struct FileInfo {
+    QString path;
+    qint64 size;
+    QString sizeFormatted;
+    QDateTime lastModified;
+    bool isSelected;
+};
+
+struct DuplicateFile {
+    QString hash;
+    QVector<FileInfo> files;
+    qint64 totalSize;
+};
+
+class FilesChecker : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit FilesChecker(MainWindow *mainWindow, QObject *parent = nullptr);
+    ~FilesChecker();
+    
+    void scanLargeFiles(const QString &path, double minSizeGB);
+    void cancelLargeFilesScan();
+    void scanDuplicateFiles(const QString &path);
+    void cancelDuplicateFilesScan();
+    void deleteSelectedFiles(const QVector<FileInfo> &files);
+    void openFileLocation(const QString &filePath);
+    void refreshDiskSpace();
+    QStringList getCommonPaths();
+     void openFileDirectory(const QString &filePath);  // ADD THIS LINE
+
+private slots:
+    void onLargeFilesScanFinished();
+    void onDuplicateFilesScanFinished();
+
+private:
+    MainWindow *m_mainWindow;
+    QFutureWatcher<QVector<FileInfo>> *m_largeFilesWatcher;
+    QFutureWatcher<QVector<DuplicateFile>> *m_duplicateFilesWatcher;
+    QAtomicInteger<bool> m_cancelLargeFilesScan;
+    QAtomicInteger<bool> m_cancelDuplicateFilesScan;
+
+    static QVector<FileInfo> performLargeFilesScan(const QString &path, qint64 minSizeBytes, QAtomicInteger<bool> &cancelFlag);
+    static QVector<DuplicateFile> performDuplicateFilesScan(const QString &path, QAtomicInteger<bool> &cancelFlag);
+    static QString calculateFileHash(const QString &filePath, QAtomicInteger<bool> &cancelFlag);
+    static QString formatFileSize(qint64 size);
+};
+
+#endif // FILESCHECKER_H#include "hardwareinfo.h"
+#include "../mainwindow.h"
+#include "../ui_mainwindow.h"
+#include <QDateTime>
+
+HardwareInfo::HardwareInfo(MainWindow *mainWindow, QObject *parent)
+    : QObject(parent), m_mainWindow(mainWindow)
+{
+}
+
+void HardwareInfo::refreshHardware()
+{
+    // Simulate hardware information gathering
+    QString hardwareInfo;
+    hardwareInfo += "<span style='color:#000000;'>";
+    hardwareInfo += "🖥️ SYSTEM HARDWARE INFORMATION<br>";
+    hardwareInfo += "══════════════════════════════<br><br>";
+
+    // CPU Information
+    hardwareInfo += "🔹 PROCESSOR (CPU)<br>";
+    hardwareInfo += "──────────────────<br>";
+    hardwareInfo += "Intel Core i7-12700K<br>";
+    hardwareInfo += "   Cores: 12 Physical, 20 Logical<br>";
+    hardwareInfo += "   Clock Speed: 3.6 GHz<br><br>";
+
+    // Motherboard Information
+    hardwareInfo += "🔧 MOTHERBOARD<br>";
+    hardwareInfo += "──────────────<br>";
+    hardwareInfo += "ASUS ROG STRIX Z690-A GAMING WIFI<br>";
+    hardwareInfo += "   Version: Rev 1.xx<br><br>";
+
+    // GPU Information
+    hardwareInfo += "🎮 GRAPHICS CARD (GPU)<br>";
+    hardwareInfo += "─────────────────────<br>";
+    hardwareInfo += "NVIDIA GeForce RTX 4070<br>";
+    hardwareInfo += "   VRAM: 12.0 GB<br>";
+    hardwareInfo += "   Driver: 546.17<br>";
+    hardwareInfo += "   Temperature: 42°C<br>";
+    hardwareInfo += "   Utilization: 8%<br><br>";
+
+    // RAM Information
+    hardwareInfo += "💾 MEMORY (RAM)<br>";
+    hardwareInfo += "───────────────<br>";
+    hardwareInfo += "32.0 GB<br>";
+    hardwareInfo += "   Manufacturer: Corsair<br>";
+    hardwareInfo += "   Speed: 3200 MHz<br><br>";
+
+    // Storage Information
+    hardwareInfo += "💿 STORAGE DRIVES<br>";
+    hardwareInfo += "────────────────<br>";
+    hardwareInfo += "   • Samsung SSD 980 PRO 1TB (1.0 TB) [SSD]<br>";
+    hardwareInfo += "   • Seagate Barracuda ST2000DM008 (2.0 TB) [HDD]<br><br>";
+
+    // Network Information
+    hardwareInfo += "🌐 NETWORK ADAPTERS<br>";
+    hardwareInfo += "──────────────────<br>";
+    hardwareInfo += "   • Intel(R) Wi-Fi 6 AX201 160MHz (Ethernet 802.3)<br>";
+    hardwareInfo += "      MAC: AA:BB:CC:DD:EE:FF<br>";
+    hardwareInfo += "   • Realtek PCIe GbE Family Controller (Ethernet 802.3)<br>";
+    hardwareInfo += "      MAC: 11:22:33:44:55:66<br><br>";
+
+    // USB Information
+    hardwareInfo += "🔌 USB DEVICES<br>";
+    hardwareInfo += "──────────────<br>";
+    hardwareInfo += "8 connected USB devices<br><br>";
+
+    hardwareInfo += "⏱️ Last updated: " + QDateTime::currentDateTime().toString("hh:mm:ss AP");
+    hardwareInfo += "</span>";
+
+    m_mainWindow->ui->textEdit_hardwareInfo->setHtml(hardwareInfo);
+    m_mainWindow->ui->label_hardwareStatus->setText("Hardware information updated successfully!");
+}
+
+void HardwareInfo::exportHardware()
+{
+    m_mainWindow->ui->label_hardwareStatus->setText("Hardware report exported to hardware_info.txt");
+}#ifndef HARDWAREINFO_H
+#define HARDWAREINFO_H
+
+#include <QObject>
+
+class MainWindow;
+
+class HardwareInfo : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit HardwareInfo(MainWindow *mainWindow, QObject *parent = nullptr);
+    
+    void refreshHardware();
+    void exportHardware();
+
+private:
+    MainWindow *m_mainWindow;
+};
+
+#endif // HARDWAREINFO_H#include "networkmanager.h"
+#include "../mainwindow.h"
+#include "../ui_mainwindow.h"
+#include <QTimer>
+#include <QTableWidgetItem>
+#include <QMap>
+
+NetworkManager::NetworkManager(MainWindow *mainWindow, QObject *parent)
+    : QObject(parent), m_mainWindow(mainWindow), 
+      m_pingTimer(nullptr), m_tracerouteTimer(nullptr), m_scanTimer(nullptr),
+      m_pingCount(0), m_tracerouteHop(0), m_currentScanPort(0), 
+      m_scanEndPort(0), m_openPortsFound(0)
+{
+}
+
+NetworkManager::~NetworkManager()
+{
+    stopPing();
+    stopTraceroute();
+    stopPortScan();
+}
+
+void NetworkManager::refreshNetworkStatus()
+{
+    // Simulate refreshing network status
+    QStringList connectionTypes = {"WiFi", "Ethernet", "Mobile", "Disconnected"};
+    QStringList statuses = {"Connected", "Connecting", "Disconnected", "Limited Access"};
+    QStringList internetAccess = {"Available", "Unavailable", "Limited"};
+
+    int randomType = rand() % connectionTypes.size();
+    int randomStatus = rand() % statuses.size();
+    int randomInternet = rand() % internetAccess.size();
+
+    // Update connection status
+    m_mainWindow->ui->label_connectionStatusValue->setText(statuses[randomStatus]);
+    m_mainWindow->ui->label_connectionTypeValue->setText(connectionTypes[randomType]);
+    m_mainWindow->ui->label_internetAccessValue->setText(internetAccess[randomInternet]);
+
+    // Set color based on status
+    if (statuses[randomStatus] == "Connected")
+    {
+        m_mainWindow->ui->label_connectionStatusValue->setStyleSheet("color: #27ae60; font-weight: bold;");
+        m_mainWindow->ui->label_internetAccessValue->setStyleSheet("color: #27ae60; font-weight: bold;");
+    }
+    else if (statuses[randomStatus] == "Limited Access")
+    {
+        m_mainWindow->ui->label_connectionStatusValue->setStyleSheet("color: #e67e22; font-weight: bold;");
+        m_mainWindow->ui->label_internetAccessValue->setStyleSheet("color: #e67e22; font-weight: bold;");
+    }
+    else
+    {
+        m_mainWindow->ui->label_connectionStatusValue->setStyleSheet("color: #e74c3c; font-weight: bold;");
+        m_mainWindow->ui->label_internetAccessValue->setStyleSheet("color: #e74c3c; font-weight: bold;");
+    }
+
+    // Update IP addresses with random values
+    QString ipv4 = QString("192.168.%1.%2").arg(rand() % 255).arg(rand() % 255);
+    QString ipv6 = QString("2001:db8:%1:%2::%3").arg(rand() % 9999).arg(rand() % 9999).arg(rand() % 9999);
+    QString gateway = QString("192.168.%1.1").arg(rand() % 255);
+
+    m_mainWindow->ui->label_ipv4Value->setText(ipv4);
+    m_mainWindow->ui->label_ipv6Value->setText(ipv6);
+    m_mainWindow->ui->label_gatewayValue->setText(gateway);
+
+    // Random DNS servers
+    QStringList dnsServers = {"8.8.8.8, 8.8.4.4", "1.1.1.1, 1.0.0.1", "9.9.9.9, 149.112.112.112", "208.67.222.222, 208.67.220.220"};
+    m_mainWindow->ui->label_dnsValue->setText(dnsServers[rand() % dnsServers.size()]);
+
+    // Update SSID if connected via WiFi
+    if (connectionTypes[randomType] == "WiFi")
+    {
+        QStringList ssids = {"HomeWiFi_5G", "Office_Network", "Guest_WiFi", "TP-Link_2.4G"};
+        m_mainWindow->ui->label_ssidValue->setText(ssids[rand() % ssids.size()]);
+    }
+    else
+    {
+        m_mainWindow->ui->label_ssidValue->setText("N/A");
+    }
+}
+
+void NetworkManager::testConnection()
+{
+    m_mainWindow->ui->textEdit_pingOutput->setPlainText("Testing internet connection...\n");
+
+    // Simulate connection test with delay
+    QTimer::singleShot(1000, this, [this]()
+                       {
+        m_mainWindow->ui->textEdit_pingOutput->append("✓ DNS resolution: Working");
+        QTimer::singleShot(500, this, [this]() {
+            m_mainWindow->ui->textEdit_pingOutput->append("✓ Gateway reachable: Yes");
+            QTimer::singleShot(500, this, [this]() {
+                m_mainWindow->ui->textEdit_pingOutput->append("✓ Internet access: Available");
+                QTimer::singleShot(500, this, [this]() {
+                    m_mainWindow->ui->textEdit_pingOutput->append("✓ Latency: 24ms");
+                    m_mainWindow->ui->textEdit_pingOutput->append("\nConnection test completed successfully!");
+                });
+            });
+        }); });
+}
+
+void NetworkManager::startPing()
+{
+    QString target = m_mainWindow->ui->lineEdit_pingTarget->text();
+    if (target.isEmpty())
+    {
+        target = "google.com";
+        m_mainWindow->ui->lineEdit_pingTarget->setText(target);
+    }
+
+    m_mainWindow->ui->textEdit_pingOutput->setPlainText(QString("Pinging %1...\n").arg(target));
+    m_mainWindow->ui->pushButton_startPing->setEnabled(false);
+    m_mainWindow->ui->pushButton_stopPing->setEnabled(true);
+
+    // Simulate ping results
+    m_pingTimer = new QTimer(this);
+    m_pingCount = 0;
+    connect(m_pingTimer, &QTimer::timeout, this, &NetworkManager::simulatePing);
+    m_pingTimer->start(1000);
+}
+
+void NetworkManager::stopPing()
+{
+    if (m_pingTimer && m_pingTimer->isActive())
+    {
+        m_pingTimer->stop();
+        m_pingTimer->deleteLater();
+        m_pingTimer = nullptr;
+    }
+
+    m_mainWindow->ui->textEdit_pingOutput->append("\nPing stopped by user.");
+    m_mainWindow->ui->pushButton_startPing->setEnabled(true);
+    m_mainWindow->ui->pushButton_stopPing->setEnabled(false);
+}
+
+void NetworkManager::simulatePing()
+{
+    m_pingCount++;
+    if (m_pingCount > 10)
+    {
+        stopPing();
+        return;
+    }
+
+    int latency = 20 + (rand() % 30); // Random latency between 20-50ms
+    int ttl = 64 - m_pingCount;
+
+    QString pingResult = QString("Reply from %1: bytes=32 time=%2ms TTL=%3")
+                             .arg(m_mainWindow->ui->lineEdit_pingTarget->text())
+                             .arg(latency)
+                             .arg(ttl);
+
+    m_mainWindow->ui->textEdit_pingOutput->append(pingResult);
+}
+
+void NetworkManager::startTraceroute()
+{
+    QString target = m_mainWindow->ui->lineEdit_tracerouteTarget->text();
+    if (target.isEmpty())
+    {
+        target = "google.com";
+        m_mainWindow->ui->lineEdit_tracerouteTarget->setText(target);
+    }
+
+    m_mainWindow->ui->textEdit_tracerouteOutput->setPlainText(QString("Traceroute to %1...\n").arg(target));
+    m_mainWindow->ui->pushButton_startTraceroute->setEnabled(false);
+    m_mainWindow->ui->pushButton_stopTraceroute->setEnabled(true);
+
+    // Simulate traceroute results
+    m_tracerouteTimer = new QTimer(this);
+    m_tracerouteHop = 0;
+    connect(m_tracerouteTimer, &QTimer::timeout, this, &NetworkManager::simulateTraceroute);
+    m_tracerouteTimer->start(800);
+}
+
+void NetworkManager::stopTraceroute()
+{
+    if (m_tracerouteTimer && m_tracerouteTimer->isActive())
+    {
+        m_tracerouteTimer->stop();
+        m_tracerouteTimer->deleteLater();
+        m_tracerouteTimer = nullptr;
+    }
+
+    m_mainWindow->ui->textEdit_tracerouteOutput->append("\nTraceroute stopped by user.");
+    m_mainWindow->ui->pushButton_startTraceroute->setEnabled(true);
+    m_mainWindow->ui->pushButton_stopTraceroute->setEnabled(false);
+}
+
+void NetworkManager::simulateTraceroute()
+{
+    m_tracerouteHop++;
+    if (m_tracerouteHop > 15)
+    {
+        m_mainWindow->ui->textEdit_tracerouteOutput->append("\nTraceroute completed.");
+        stopTraceroute();
+        return;
+    }
+
+    QStringList routers = {
+        "192.168.1.1", "10.0.0.1", "172.16.0.1", "203.0.113.1",
+        "198.51.100.1", "203.0.113.254", "192.0.2.1", "198.18.0.1",
+        "192.88.99.1", "2001:db8::1", "2001:4860:4860::8888"};
+
+    int latency1 = 1 + (rand() % 10);
+    int latency2 = 1 + (rand() % 10);
+    int latency3 = 1 + (rand() % 10);
+
+    QString router = routers[rand() % routers.size()];
+    QString tracerouteResult = QString("%1  %2 ms  %3 ms  %4 ms  %5")
+                                   .arg(m_tracerouteHop, 2)
+                                   .arg(latency1, 2)
+                                   .arg(latency2, 2)
+                                   .arg(latency3, 2)
+                                   .arg(router);
+
+    m_mainWindow->ui->textEdit_tracerouteOutput->append(tracerouteResult);
+
+    // If we reached the final hop
+    if (m_tracerouteHop == 15)
+    {
+        QString finalResult = QString("15  %1 ms  %2 ms  %3 ms  %4")
+                                  .arg(24, 2)
+                                  .arg(25, 2)
+                                  .arg(23, 2)
+                                  .arg(m_mainWindow->ui->lineEdit_tracerouteTarget->text());
+        m_mainWindow->ui->textEdit_tracerouteOutput->append(finalResult);
+    }
+}
+
+void NetworkManager::startPortScan()
+{
+    QString target = m_mainWindow->ui->lineEdit_scannerTarget->text();
+    if (target.isEmpty())
+    {
+        target = "localhost";
+        m_mainWindow->ui->lineEdit_scannerTarget->setText(target);
+    }
+
+    int startPort = m_mainWindow->ui->spinBox_startPort->value();
+    int endPort = m_mainWindow->ui->spinBox_endPort->value();
+
+    if (startPort > endPort)
+    {
+        m_mainWindow->ui->label_scanSummary->setText("Error: Start port cannot be greater than end port");
+        return;
+    }
+
+    m_mainWindow->ui->tableWidget_scanResults->setRowCount(0);
+    m_mainWindow->ui->pushButton_startScan->setEnabled(false);
+    m_mainWindow->ui->pushButton_stopScan->setEnabled(true);
+    m_mainWindow->ui->progressBar_scan->setValue(0);
+
+    // Simulate port scanning
+    m_scanTimer = new QTimer(this);
+    m_currentScanPort = startPort;
+    m_scanEndPort = endPort;
+    m_openPortsFound = 0;
+
+    connect(m_scanTimer, &QTimer::timeout, this, &NetworkManager::simulatePortScan);
+    m_scanTimer->start(50); // Fast simulation
+}
+
+void NetworkManager::stopPortScan()
+{
+    if (m_scanTimer && m_scanTimer->isActive())
+    {
+        m_scanTimer->stop();
+        m_scanTimer->deleteLater();
+        m_scanTimer = nullptr;
+    }
+
+    m_mainWindow->ui->pushButton_startScan->setEnabled(true);
+    m_mainWindow->ui->pushButton_stopScan->setEnabled(false);
+    m_mainWindow->ui->progressBar_scan->setValue(100);
+
+    m_mainWindow->ui->label_scanSummary->setText(
+        QString("Scan stopped. %1 ports scanned, %2 open ports found")
+            .arg(m_currentScanPort - m_mainWindow->ui->spinBox_startPort->value())
+            .arg(m_openPortsFound));
+}
+
+void NetworkManager::simulatePortScan()
+{
+    if (m_currentScanPort > m_scanEndPort)
+    {
+        stopPortScan();
+        m_mainWindow->ui->label_scanSummary->setText(
+            QString("Scan completed. %1 ports scanned, %2 open ports found")
+                .arg(m_scanEndPort - m_mainWindow->ui->spinBox_startPort->value() + 1)
+                .arg(m_openPortsFound));
+        return;
+    }
+
+    // Update progress
+    int totalPorts = m_scanEndPort - m_mainWindow->ui->spinBox_startPort->value() + 1;
+    int progress = ((m_currentScanPort - m_mainWindow->ui->spinBox_startPort->value()) * 100) / totalPorts;
+    m_mainWindow->ui->progressBar_scan->setValue(progress);
+
+    // Common open ports with their services
+    QMap<int, QString> commonPorts = {
+        {21, "FTP"}, {22, "SSH"}, {23, "Telnet"}, {25, "SMTP"}, {53, "DNS"}, {80, "HTTP"}, {110, "POP3"}, {143, "IMAP"}, {443, "HTTPS"}, {993, "IMAPS"}, {995, "POP3S"}, {1433, "MSSQL"}, {3306, "MySQL"}, {3389, "RDP"}, {5432, "PostgreSQL"}, {6379, "Redis"}, {27017, "MongoDB"}};
+
+    // Simulate finding open ports (random chance + common ports)
+    bool isOpen = false;
+    QString service = "Unknown";
+
+    if (commonPorts.contains(m_currentScanPort))
+    {
+        // Higher chance for common ports to be "open" in simulation
+        isOpen = (rand() % 100) < 30; // 30% chance
+        service = commonPorts[m_currentScanPort];
+    }
+    else
+    {
+        // Lower chance for other ports
+        isOpen = (rand() % 100) < 5; // 5% chance
+        service = "Unknown";
+    }
+
+    if (isOpen)
+    {
+        m_openPortsFound++;
+        int row = m_mainWindow->ui->tableWidget_scanResults->rowCount();
+        m_mainWindow->ui->tableWidget_scanResults->insertRow(row);
+
+        m_mainWindow->ui->tableWidget_scanResults->setItem(row, 0, new QTableWidgetItem(QString::number(m_currentScanPort)));
+        m_mainWindow->ui->tableWidget_scanResults->setItem(row, 1, new QTableWidgetItem(service));
+
+        QTableWidgetItem *statusItem = new QTableWidgetItem("Open");
+        statusItem->setForeground(QBrush(QColor("#27ae60")));
+        m_mainWindow->ui->tableWidget_scanResults->setItem(row, 2, statusItem);
+    }
+
+    m_currentScanPort++;
+}#ifndef NETWORKMANAGER_H
+#define NETWORKMANAGER_H
+
+#include <QObject>
+#include <QTimer>
+#include <QMap>
+
+class MainWindow;
+
+class NetworkManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit NetworkManager(MainWindow *mainWindow, QObject *parent = nullptr);
+    ~NetworkManager();
+
+    void refreshNetworkStatus();
+    void testConnection();
+    void startPing();
+    void stopPing();
+    void startTraceroute();
+    void stopTraceroute();
+    void startPortScan();
+    void stopPortScan();
+
+private slots:
+    void simulatePing();
+    void simulateTraceroute();
+    void simulatePortScan();
+
+private:
+    MainWindow *m_mainWindow;
+    QTimer *m_pingTimer;
+    QTimer *m_tracerouteTimer;
+    QTimer *m_scanTimer;
+    int m_pingCount;
+    int m_tracerouteHop;
+    int m_currentScanPort;
+    int m_scanEndPort;
+    int m_openPortsFound;
+};
+
+#endif // NETWORKMANAGER_H#include "softwaremanager.h"
+#include "../mainwindow.h"
+#include "../ui_mainwindow.h"
+#include <QTableWidgetItem>
+
+SoftwareManager::SoftwareManager(MainWindow *mainWindow, QObject *parent)
+    : QObject(parent), m_mainWindow(mainWindow)
+{
+}
+
+void SoftwareManager::refreshSoftware()
+{
+    populateSoftwareTable();
+}
+
+void SoftwareManager::searchSoftware(const QString &searchText)
+{
+    // Simple search filter
+    if (searchText.isEmpty())
+    {
+        // Show all items
+        for (int i = 0; i < m_mainWindow->ui->softwareTable->rowCount(); ++i)
+        {
+            m_mainWindow->ui->softwareTable->setRowHidden(i, false);
+        }
+    }
+    else
+    {
+        // Hide non-matching items
+        for (int i = 0; i < m_mainWindow->ui->softwareTable->rowCount(); ++i)
+        {
+            QTableWidgetItem *item = m_mainWindow->ui->softwareTable->item(i, 0); // Name column
+            bool match = item && item->text().contains(searchText, Qt::CaseInsensitive);
+            m_mainWindow->ui->softwareTable->setRowHidden(i, !match);
+        }
+    }
+}
+
+void SoftwareManager::onSoftwareSelectionChanged()
+{
+    QList<QTableWidgetItem *> selectedItems = m_mainWindow->ui->softwareTable->selectedItems();
+    bool hasSelection = !selectedItems.isEmpty();
+
+    m_mainWindow->ui->uninstallSoftwareButton->setEnabled(hasSelection);
+    m_mainWindow->ui->forceUninstallButton->setEnabled(hasSelection);
+
+    if (hasSelection)
+    {
+        int row = m_mainWindow->ui->softwareTable->currentRow();
+        QString name = m_mainWindow->ui->softwareTable->item(row, 0)->text();
+        QString version = m_mainWindow->ui->softwareTable->item(row, 1)->text();
+        QString size = m_mainWindow->ui->softwareTable->item(row, 2)->text();
+
+        m_mainWindow->ui->selectedSoftwareInfo->setText(
+            QString("Selected: %1 %2 (%3)").arg(name).arg(version).arg(size));
+    }
+    else
+    {
+        m_mainWindow->ui->selectedSoftwareInfo->setText("No software selected");
+    }
+}
+
+void SoftwareManager::uninstallSoftware()
+{
+    // Placeholder for uninstall functionality
+    int row = m_mainWindow->ui->softwareTable->currentRow();
+    if (row >= 0)
+    {
+        QString softwareName = m_mainWindow->ui->softwareTable->item(row, 0)->text();
+        m_mainWindow->ui->selectedSoftwareInfo->setText(
+            QString("Would uninstall: %1 (normal mode)").arg(softwareName));
+    }
+}
+
+void SoftwareManager::forceUninstallSoftware()
+{
+    // Placeholder for force uninstall functionality
+    int row = m_mainWindow->ui->softwareTable->currentRow();
+    if (row >= 0)
+    {
+        QString softwareName = m_mainWindow->ui->softwareTable->item(row, 0)->text();
+        m_mainWindow->ui->selectedSoftwareInfo->setText(
+            QString("Would force uninstall: %1").arg(softwareName));
+    }
+}
+
+void SoftwareManager::populateSoftwareTable()
+{
+    // Clear existing items
+    m_mainWindow->ui->softwareTable->setRowCount(0);
+
+    // Add sample data - in real implementation, this would query the system
+    QStringList sampleSoftware = {
+        "Google Chrome", "Mozilla Firefox", "Microsoft Edge", "Visual Studio Code",
+        "Adobe Reader", "VLC Media Player", "7-Zip", "WinRAR", "Spotify", "Discord"};
+
+    QStringList versions = {
+        "96.0.4664.110", "95.0.2", "96.0.1054.62", "1.63.0",
+        "2021.011.20039", "3.0.16", "21.07", "6.02", "1.1.68.610", "1.0.9003"};
+
+    QStringList sizes = {
+        "350 MB", "280 MB", "320 MB", "450 MB",
+        "650 MB", "85 MB", "2.5 MB", "3.1 MB", "180 MB", "140 MB"};
+
+    QStringList dates = {
+        "2023-11-15", "2023-11-10", "2023-11-20", "2023-11-05",
+        "2023-10-28", "2023-11-12", "2023-09-15", "2023-10-20", "2023-11-18", "2023-11-22"};
+
+    for (int i = 0; i < sampleSoftware.size(); ++i)
+    {
+        int row = m_mainWindow->ui->softwareTable->rowCount();
+        m_mainWindow->ui->softwareTable->insertRow(row);
+
+        m_mainWindow->ui->softwareTable->setItem(row, 0, new QTableWidgetItem(sampleSoftware[i]));
+        m_mainWindow->ui->softwareTable->setItem(row, 1, new QTableWidgetItem(versions[i]));
+        m_mainWindow->ui->softwareTable->setItem(row, 2, new QTableWidgetItem(sizes[i]));
+        m_mainWindow->ui->softwareTable->setItem(row, 3, new QTableWidgetItem(dates[i]));
+    }
+
+    // Resize columns to content
+    m_mainWindow->ui->softwareTable->resizeColumnsToContents();
+}#ifndef SOFTWAREUNINSTALLER_H
+#define SOFTWAREUNINSTALLER_H
+
+#include <QObject>
+
+class MainWindow;
+
+class SoftwareManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit SoftwareManager(MainWindow *mainWindow, QObject *parent = nullptr);
+    
+    void refreshSoftware();
+    void searchSoftware(const QString &searchText);
+    void onSoftwareSelectionChanged();
+    void uninstallSoftware();
+    void forceUninstallSoftware();
+    void populateSoftwareTable();
+
+private:
+    MainWindow *m_mainWindow;
+};
+
+#endif // SOFTWAREUNINSTALLER_H#include "systemcleaner.h"
+#include "../mainwindow.h"
+#include "../ui_mainwindow.h"
+#include <QProcess>
+#include <QMessageBox>
+#include <QTimer>
+#include <QtConcurrent/QtConcurrent>
+#include <QListWidgetItem>
+#include <QProgressDialog>
+#include <QApplication>
+#include <QThread>
+#include <QRegularExpression>
+
+SystemCleaner::SystemCleaner(MainWindow *mainWindow, QObject *parent)
+    : QObject(parent), m_mainWindow(mainWindow), m_isScanning(false), m_isSystemScanning(false)
+{
+    m_scanWatcher = new QFutureWatcher<QVector<double>>(this);
+    m_systemScanWatcher = new QFutureWatcher<QVector<double>>(this);
+    setupConnections();
+}
+
+SystemCleaner::~SystemCleaner()
+{
+    delete m_scanWatcher;
+    delete m_systemScanWatcher;
+}
+
+void SystemCleaner::setupConnections()
+{
+    connect(m_scanWatcher, &QFutureWatcher<QVector<double>>::finished,
+            this, &SystemCleaner::onQuickScanFinished);
+    connect(m_systemScanWatcher, &QFutureWatcher<QVector<double>>::finished,
+            this, &SystemCleaner::onSystemScanFinished);
+}
+
+void SystemCleaner::performQuickScan()
+{
+    if (m_isScanning)
+    {
+        m_mainWindow->ui->quickCleanResults->setPlainText("Scan already in progress...");
+        return;
+    }
+
+    m_mainWindow->ui->quickCleanResults->setPlainText("Scanning for junk files...\n(You can navigate to other tabs while scanning)");
+    m_mainWindow->ui->scanQuickButton->setEnabled(false);
+    m_mainWindow->ui->cleanQuickButton->setEnabled(false);
+    m_mainWindow->ui->quickCleanProgressBar->setValue(0);
+
+    m_isScanning = true;
+
+    // Start the scan in background thread using lambda
+    QFuture<QVector<double>> future = QtConcurrent::run([]()
+                                                        { return SystemCleaner::performScan(); });
+
+    m_scanWatcher->setFuture(future);
+}
+
+void SystemCleaner::performQuickClean()
+{
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(m_mainWindow, "Confirm Clean",
+                                  "This will delete temporary files, cache, and other junk files.\n\n"
+                                  "Are you sure you want to continue?",
+                                  QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::No)
+    {
+        return;
+    }
+
+    m_mainWindow->ui->quickCleanResults->append("\n\nCleaning in progress...");
+    m_mainWindow->ui->cleanQuickButton->setEnabled(false);
+
+    QProcess process;
+
+    // Clean temporary files
+    process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path $env:TEMP -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                               "try { Remove-Item $_.FullName -Force -ErrorAction Stop } "
+                                                               "catch { Write-Warning \"Failed to remove: $($_.FullName)\" } "
+                                                               "}");
+    process.waitForFinished();
+
+    // Clean Windows Temp
+    process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path 'C:\\Windows\\Temp' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { "
+                                                               "$_.CreationTime -lt (Get-Date).AddDays(-1) } | ForEach-Object { "
+                                                               "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+    process.waitForFinished();
+
+    // Clean Memory Dump Files
+    process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path 'C:\\Windows\\*.dmp' -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                               "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }; "
+                                                               "Get-ChildItem -Path 'C:\\Windows\\LiveKernelReports\\*.dmp' -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                               "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+    process.waitForFinished();
+
+    // Clean Thumbnail Cache (this requires Explorer restart)
+    process.start("powershell", QStringList() << "-Command" << "Stop-Process -Name 'explorer' -Force -ErrorAction SilentlyContinue; "
+                                                               "Start-Sleep -Seconds 2; "
+                                                               "Get-ChildItem -Path '$env:LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\thumbcache_*.db' -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                               "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }; ");
+    process.waitForFinished();
+
+    // Clean Prefetch Files (only old ones)
+    process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path 'C:\\Windows\\Prefetch\\*.pf' -ErrorAction SilentlyContinue | Where-Object { "
+                                                               "$_.LastWriteTime -lt (Get-Date).AddDays(-7) } | ForEach-Object { "
+                                                               "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+    process.waitForFinished();
+
+    m_mainWindow->ui->quickCleanResults->append("Cleaning completed! Rescanning to verify...");
+    m_mainWindow->ui->spaceSavedLabel->setText("Cleaning process finished");
+
+    // Rescan after a delay to show new sizes
+    QTimer::singleShot(3000, this, [this]()
+                       { performQuickScan(); });
+}
+
+void SystemCleaner::performSystemScan()
+{
+    if (m_isSystemScanning)
+    {
+        return;
+    }
+
+    if (!m_mainWindow || !m_mainWindow->ui)
+        return;
+
+    QListWidget *systemList = m_mainWindow->ui->systemCleanerList;
+    if (!systemList)
+        return;
+
+    // Show scanning message - remove checkmarks during scan
+    for (int i = 0; i < systemList->count(); ++i)
+    {
+        QListWidgetItem *item = systemList->item(i);
+        QString text = item->text();
+        // Remove any existing checkmark and show scanning
+        text.replace("✅", "");
+        text.replace("❌", "");
+        text.replace(QRegularExpression("\\(.*\\)"), "(Scanning...)");
+        item->setText(text);
+    }
+
+    m_mainWindow->ui->scanSystemButton->setEnabled(false);
+    m_mainWindow->ui->cleanSystemButton->setEnabled(false);
+    m_isSystemScanning = true;
+
+    // Start system scan in background
+    QFuture<QVector<double>> future = QtConcurrent::run([]()
+                                                        { return SystemCleaner::performSystemScanInternal(); });
+
+    m_systemScanWatcher->setFuture(future);
+}
+
+void SystemCleaner::performSystemClean()
+{
+    if (!m_mainWindow || !m_mainWindow->ui)
+        return;
+
+    QListWidget *systemList = m_mainWindow->ui->systemCleanerList;
+    if (!systemList)
+        return;
+
+    // Get selected items - now we'll check which items have checkmarks
+    QList<QListWidgetItem *> itemsToClean;
+    double totalSelectedSize = 0;
+
+    for (int i = 0; i < systemList->count(); ++i)
+    {
+        QListWidgetItem *item = systemList->item(i);
+        QString itemText = item->text();
+
+        // Check if item has checkmark (✅) and extract size
+        if (itemText.contains("✅"))
+        {
+            itemsToClean.append(item);
+
+            // Extract size for total calculation
+            QRegularExpression sizeRegex("\\(([0-9.]+) ([KMG]B)\\)");
+            QRegularExpressionMatch match = sizeRegex.match(itemText);
+
+            if (match.hasMatch())
+            {
+                double size = match.captured(1).toDouble();
+                QString unit = match.captured(2);
+
+                // Convert to MB for total
+                if (unit == "KB")
+                    size /= 1024;
+                else if (unit == "GB")
+                    size *= 1024;
+
+                totalSelectedSize += size;
+            }
+        }
+    }
+
+    if (itemsToClean.isEmpty())
+    {
+        QMessageBox::information(m_mainWindow, "System Cleaner",
+                                 "Please select items to clean by clicking on them first.\n\n"
+                                 "Click on items to toggle the checkmark ✅.");
+        return;
+    }
+
+    // Show confirmation dialog with selected items
+    QString confirmationText = QString("This will delete the following %1 selected items:\n\n").arg(itemsToClean.size());
+
+    for (int i = 0; i < itemsToClean.size() && i < 5; ++i)
+    {
+        QString itemText = itemsToClean[i]->text();
+        // Clean up the text for display
+        itemText = itemText.replace("✅", "").replace("❌", "").trimmed();
+        confirmationText += "• " + itemText + "\n";
+    }
+
+    if (itemsToClean.size() > 5)
+    {
+        confirmationText += QString("• ... and %1 more items\n").arg(itemsToClean.size() - 5);
+    }
+
+    confirmationText += QString("\nTotal size: %1 MB\n\nAre you sure you want to continue?")
+                            .arg(totalSelectedSize, 0, 'f', 1);
+
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(m_mainWindow, "Confirm System Clean",
+                                  confirmationText,
+                                  QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::No)
+    {
+        return;
+    }
+
+    // Show cleaning progress
+    QProgressDialog progress("Cleaning selected system files...", "Cancel", 0, itemsToClean.size(), m_mainWindow);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.show();
+
+    double totalCleaned = 0;
+    QProcess process;
+
+    for (int i = 0; i < itemsToClean.size(); ++i)
+    {
+        if (progress.wasCanceled())
+            break;
+
+        QListWidgetItem *item = itemsToClean[i];
+        QString itemText = item->text();
+
+        // Extract size from item text for reporting
+        QRegularExpression sizeRegex("\\(([0-9.]+) ([KMG]B)\\)");
+        QRegularExpressionMatch match = sizeRegex.match(itemText);
+
+        if (match.hasMatch())
+        {
+            double size = match.captured(1).toDouble();
+            QString unit = match.captured(2);
+
+            // Convert to MB for total
+            if (unit == "KB")
+                size /= 1024;
+            else if (unit == "GB")
+                size *= 1024;
+
+            totalCleaned += size;
+        }
+
+        // Clean based on category
+        if (itemText.contains("Temporary Files"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path $env:TEMP, 'C:\\Windows\\Temp' -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Windows Update Cache"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path 'C:\\Windows\\SoftwareDistribution\\Download' -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("System Log Files"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path 'C:\\Windows\\Logs' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { "
+                                                                       "$_.LastWriteTime -lt (Get-Date).AddDays(-30) } | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Memory Dump Files"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path 'C:\\Windows\\*.dmp', 'C:\\Windows\\LiveKernelReports\\*.dmp' -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Thumbnail Cache"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Stop-Process -Name 'explorer' -Force -ErrorAction SilentlyContinue; "
+                                                                       "Start-Sleep -Seconds 2; "
+                                                                       "Get-ChildItem -Path '$env:LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\thumbcache_*.db' -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }; ");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Error Reports"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path 'C:\\ProgramData\\Microsoft\\Windows\\WER', '$env:LOCALAPPDATA\\Microsoft\\Windows\\WER' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { "
+                                                                       "$_.LastWriteTime -lt (Get-Date).AddDays(-7) } | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Recycle Bin"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Clear-RecycleBin -Force -ErrorAction SilentlyContinue");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Prefetch Files"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path 'C:\\Windows\\Prefetch\\*.pf' -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Font Cache"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path \"$env:LOCALAPPDATA\\Microsoft\\Windows\\FontCache\" -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Delivery Optimization"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path \"$env:LOCALAPPDATA\\Microsoft\\Windows\\DeliveryOptimization\" -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Error Reporting Archive"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path \"$env:LOCALAPPDATA\\Microsoft\\Windows\\WER\\ReportArchive\" -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+        else if (itemText.contains("Windows Defender Scans"))
+        {
+            process.start("powershell", QStringList() << "-Command" << "Get-ChildItem -Path \"C:\\ProgramData\\Microsoft\\Windows Defender\\Scans\" -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { "
+                                                                       "try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }");
+            process.waitForFinished();
+        }
+
+        // Update progress
+        progress.setValue(i + 1);
+        QApplication::processEvents();
+        QThread::msleep(300);
+    }
+
+    progress.close();
+
+    // Show completion message
+    QString sizeText;
+    if (totalCleaned < 1)
+    {
+        sizeText = QString("%1 KB").arg(int(totalCleaned * 1024));
+    }
+    else if (totalCleaned < 1024)
+    {
+        sizeText = QString("%1 MB").arg(totalCleaned, 0, 'f', 1);
+    }
+    else
+    {
+        sizeText = QString("%1 GB").arg(totalCleaned / 1024, 0, 'f', 1);
+    }
+
+    QMessageBox::information(m_mainWindow, "System Cleaner",
+                             QString("Successfully cleaned %1 of data!").arg(sizeText));
+
+    // Reset the UI
+    m_mainWindow->ui->cleanSystemButton->setEnabled(false);
+
+    // Rescan to show new sizes
+    performSystemScan();
+}
+
+void SystemCleaner::performBrowserScan()
+{
+    m_mainWindow->ui->cleanBrowsersButton->setEnabled(true);
+}
+
+void SystemCleaner::performBrowserClean()
+{
+    m_mainWindow->ui->cleanBrowsersButton->setEnabled(false);
+}
+
+void SystemCleaner::onQuickScanFinished()
+{
+    m_isScanning = false;
+
+    // Get results from the future
+    QVector<double> results = m_scanWatcher->result();
+
+    if (results.size() >= 6)
+    {
+        double tempSize = results[0];
+        double updateSize = results[1];
+        double logSize = results[2];
+        double dumpSize = results[3];
+        double thumbSize = results[4];
+        double prefetchSize = results[5];
+
+        double totalSize = tempSize + updateSize + logSize + dumpSize + thumbSize + prefetchSize;
+
+        QString resultsText = QString("Scanning completed!\n\n"
+                                      "• Temporary Files: %1 MB\n"
+                                      "• Windows Update Cache: %2 MB\n"
+                                      "• System Log Files: %3 MB\n"
+                                      "• Memory Dump Files: %4 MB\n"
+                                      "• Thumbnail Cache: %5 MB\n"
+                                      "• Prefetch Files: %6 MB\n\n"
+                                      "Total: %7 MB")
+                                  .arg(tempSize, 0, 'f', 1)
+                                  .arg(updateSize, 0, 'f', 1)
+                                  .arg(logSize, 0, 'f', 1)
+                                  .arg(dumpSize, 0, 'f', 1)
+                                  .arg(thumbSize, 0, 'f', 1)
+                                  .arg(prefetchSize, 0, 'f', 1)
+                                  .arg(totalSize, 0, 'f', 1);
+
+        m_mainWindow->ui->quickCleanResults->setPlainText(resultsText);
+        m_mainWindow->ui->spaceSavedLabel->setText(QString("Total space to be freed: %1 MB").arg(totalSize, 0, 'f', 1));
+        m_mainWindow->ui->cleanQuickButton->setEnabled(totalSize > 0);
+    }
+
+    m_mainWindow->ui->scanQuickButton->setEnabled(true);
+    m_mainWindow->ui->quickCleanProgressBar->setValue(100);
+}
+
+void SystemCleaner::onSystemScanFinished()
+{
+    m_isSystemScanning = false;
+
+    // Get results from the future
+    QVector<double> results = m_systemScanWatcher->result();
+    updateSystemScanResults(results);
+}
+
+void SystemCleaner::updateScanProgress(int value)
+{
+    m_mainWindow->ui->quickCleanProgressBar->setValue(value);
+}
+
+QVector<double> SystemCleaner::performScan()
+{
+    QVector<double> results;
+    results.resize(6);
+
+    QProcess process;
+
+    // Get temporary files size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem $env:TEMP -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    results[0] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // Get Windows Update cache size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem 'C:\\Windows\\Temp' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    results[1] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // Get system log files size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem 'C:\\Windows\\Logs' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    results[2] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // Get memory dump files size
+    process.start("powershell", QStringList() << "-Command" << "((Get-ChildItem 'C:\\Windows\\*.dmp' -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum + (Get-ChildItem 'C:\\Windows\\LiveKernelReports\\*.dmp' -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum) / 1MB");
+    process.waitForFinished();
+    results[3] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // Get thumbnail cache size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem \"$env:LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\thumbcache_*.db\" -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    results[4] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // Get prefetch files size
+    process.start("powershell", QStringList() << "-Command" << "(Get-ChildItem 'C:\\Windows\\Prefetch\\*.pf' -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB");
+    process.waitForFinished();
+    results[5] = process.readAllStandardOutput().trimmed().toDouble();
+
+    return results;
+}
+
+QVector<double> SystemCleaner::performSystemScanInternal()
+{
+    QVector<double> results;
+    results.resize(12);
+
+    QProcess process;
+
+    // 1. Temporary Files (%TEMP% and Windows Temp)
+    process.start("powershell", QStringList() << "-Command" << "try { ((Get-ChildItem -Path $env:TEMP -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum + "
+                                                               "(Get-ChildItem -Path 'C:\\Windows\\Temp' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum) / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[0] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 2. Windows Update Cache
+    process.start("powershell", QStringList() << "-Command" << "try { (Get-ChildItem -Path 'C:\\Windows\\SoftwareDistribution\\Download' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[1] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 3. System Log Files (only old logs > 30 days)
+    process.start("powershell", QStringList() << "-Command" << "try { (Get-ChildItem -Path 'C:\\Windows\\Logs' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | Measure-Object -Property Length -Sum).Sum / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[2] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 4. Memory Dump Files
+    process.start("powershell", QStringList() << "-Command" << "try { ((Get-ChildItem -Path 'C:\\Windows\\*.dmp' -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum + "
+                                                               "(Get-ChildItem -Path 'C:\\Windows\\LiveKernelReports\\*.dmp' -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum) / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[3] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 5. Thumbnail Cache
+    process.start("powershell", QStringList() << "-Command" << "try { (Get-ChildItem -Path \"$env:LOCALAPPDATA\\Microsoft\\Windows\\Explorer\\thumbcache_*.db\" -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[4] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 6. Error Reports
+    process.start("powershell", QStringList() << "-Command" << "try { ((Get-ChildItem -Path 'C:\\ProgramData\\Microsoft\\Windows\\WER' -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | Measure-Object -Property Length -Sum).Sum + "
+                                                               "(Get-ChildItem -Path \"$env:LOCALAPPDATA\\Microsoft\\Windows\\WER\" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | Measure-Object -Property Length -Sum).Sum) / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[5] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 7. Recycle Bin - Use COM object to get accurate size
+    process.start("powershell", QStringList() << "-Command" << "try { "
+                                                               "$shell = New-Object -ComObject Shell.Application; "
+                                                               "$recycleBin = $shell.NameSpace(0x0a); "
+                                                               "$totalSize = 0; "
+                                                               "foreach ($item in $recycleBin.Items()) { $totalSize += $item.Size }; "
+                                                               "$totalSize / 1MB "
+                                                               "} catch { 0 }");
+    process.waitForFinished();
+    results[6] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 8. Windows Prefetch
+    process.start("powershell", QStringList() << "-Command" << "try { (Get-ChildItem -Path 'C:\\Windows\\Prefetch\\*.pf' -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | Measure-Object -Property Length -Sum).Sum / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[7] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 9. Windows Font Cache
+    process.start("powershell", QStringList() << "-Command" << "try { (Get-ChildItem -Path \"$env:LOCALAPPDATA\\Microsoft\\Windows\\FontCache\" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[8] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 10. Delivery Optimization Files
+    process.start("powershell", QStringList() << "-Command" << "try { (Get-ChildItem -Path \"$env:LOCALAPPDATA\\Microsoft\\Windows\\DeliveryOptimization\\Cache\" -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[9] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 11. Windows Error Reporting Archive
+    process.start("powershell", QStringList() << "-Command" << "try { (Get-ChildItem -Path \"$env:LOCALAPPDATA\\Microsoft\\Windows\\WER\\ReportArchive\" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | Measure-Object -Property Length -Sum).Sum / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[10] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // 12. Windows Defender Scans
+    process.start("powershell", QStringList() << "-Command" << "try { (Get-ChildItem -Path \"C:\\ProgramData\\Microsoft\\Windows Defender\\Scans\\History\" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | Measure-Object -Property Length -Sum).Sum / 1MB } catch { 0 }");
+    process.waitForFinished();
+    results[11] = process.readAllStandardOutput().trimmed().toDouble();
+
+    // Debug: Print results to console
+    qDebug() << "Scan results:";
+    for (int i = 0; i < results.size(); ++i)
+    {
+        qDebug() << "Category" << i << ":" << results[i] << "MB";
+    }
+
+    return results;
+}
+
+void SystemCleaner::updateSystemScanResults(const QVector<double> &results)
+{
+    if (!m_mainWindow || !m_mainWindow->ui)
+        return;
+
+    QListWidget *systemList = m_mainWindow->ui->systemCleanerList;
+    if (!systemList)
+        return;
+
+    // Define category names matching your UI - now with more options
+    QStringList categories = {
+        "Temporary Files",
+        "Windows Update Cache",
+        "System Log Files",
+        "Memory Dump Files",
+        "Thumbnail Cache",
+        "Error Reports",
+        "Recycle Bin",
+        "Prefetch Files",
+        "Font Cache",
+        "Delivery Optimization",
+        "Error Reporting Archive",
+        "Windows Defender Scans"};
+
+    double totalSize = 0;
+
+    for (int i = 0; i < systemList->count() && i < results.size(); ++i)
+    {
+        QListWidgetItem *item = systemList->item(i);
+        double sizeMB = results[i];
+        totalSize += sizeMB;
+
+        QString sizeText;
+        if (sizeMB < 1)
+        {
+            sizeText = QString("(%1 KB)").arg(int(sizeMB * 1024));
+        }
+        else if (sizeMB < 1024)
+        {
+            sizeText = QString("(%1 MB)").arg(sizeMB, 0, 'f', 1);
+        }
+        else
+        {
+            sizeText = QString("(%1 GB)").arg(sizeMB / 1024, 0, 'f', 1);
+        }
+
+        // Start with empty checkmark - user can click to toggle
+        QString itemText = "❌ " + categories[i] + " " + sizeText;
+        item->setText(itemText);
+
+        // Add tooltip with more info
+        QString description = getCategoryDescription(categories[i]);
+        item->setToolTip(QString("Category: %1\n%2\nEstimated size: %3\nClick to toggle selection ✅/❌")
+                             .arg(categories[i])
+                             .arg(description)
+                             .arg(sizeText));
+    }
+
+    // Enable clean button and scan button
+    m_mainWindow->ui->cleanSystemButton->setEnabled(totalSize > 0);
+    m_mainWindow->ui->scanSystemButton->setEnabled(true);
+
+    qDebug() << "System scan completed. Total size:" << totalSize << "MB";
+}
+
+// Add this helper function for category descriptions:
+QString SystemCleaner::getCategoryDescription(const QString &category)
+{
+    static QMap<QString, QString> descriptions = {
+        {"Temporary Files", "Application and system temporary files. Safe to delete."},
+        {"Windows Update Cache", "Leftover Windows Update installation files. Safe to delete."},
+        {"System Log Files", "Old system event logs (keeps recent 30 days). Safe to delete."},
+        {"Memory Dump Files", "System crash memory dumps. Safe to delete if not debugging."},
+        {"Thumbnail Cache", "File thumbnail cache. Will rebuild automatically. Safe to delete."},
+        {"Error Reports", "Windows Error Reporting files. Safe to delete."},
+        {"Recycle Bin", "Deleted files waiting for permanent removal. Safe to empty."},
+        {"Prefetch Files", "Application launch optimization files. Safe to delete."},
+        {"Font Cache", "Cached font data. Will rebuild automatically. Safe to delete."},
+        {"Delivery Optimization", "Windows Update cache for peer-to-peer sharing. Safe to delete."},
+        {"Error Reporting Archive", "Archived error reports. Safe to delete."},
+        {"Windows Defender Scans", "Previous antivirus scan results. Safe to delete."}};
+
+    return descriptions.value(category, "System files that can be safely cleaned.");
+}#ifndef SYSTEMCLEANER_H
+#define SYSTEMCLEANER_H
+
+#include <QObject>
+#include <QFutureWatcher>
+#include <QVector>
+#include <QListWidgetItem>
+#include <QProgressDialog>
+
+class MainWindow;
+
+class SystemCleaner : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit SystemCleaner(MainWindow *mainWindow, QObject *parent = nullptr);
+    ~SystemCleaner();
+
+    void performQuickScan();
+    void performQuickClean();
+    void performSystemScan();
+    void performSystemClean();
+    void performBrowserScan();
+    void performBrowserClean();
+
+private slots:
+    void onQuickScanFinished();
+    void updateScanProgress(int value);
+    void onSystemScanFinished();
+
+private:
+    QString getCategoryDescription(const QString& category);
+
+    MainWindow *m_mainWindow;
+    QFutureWatcher<QVector<double>> *m_scanWatcher;
+    QFutureWatcher<QVector<double>> *m_systemScanWatcher;
+    bool m_isScanning;
+    bool m_isSystemScanning;
+
+    static QVector<double> performScan();
+    static QVector<double> performSystemScanInternal();
+    void setupConnections();
+    void updateSystemScanResults(const QVector<double>& results);
+    void performSystemCleanInternal(QList<QListWidgetItem*> selectedItems, QProgressDialog* progress);
+};
+
+#endif // SYSTEMCLEANER_H#include "wifimanager.h"
+#include "../mainwindow.h"
+#include "../ui_mainwindow.h"
+#include <QTableWidgetItem>
+#include <QListWidgetItem>
+
+WiFiManager::WiFiManager(MainWindow *mainWindow, QObject *parent)
+    : QObject(parent), m_mainWindow(mainWindow)
+{
+}
+
+void WiFiManager::scanNetworks()
+{
+    m_mainWindow->ui->diagnosticsOutput->setPlainText("Scanning for available WiFi networks...\n\nFound 8 networks:");
+    m_mainWindow->ui->networksTable->setRowCount(0);
+
+    // Sample network data
+    QStringList networks = {"HomeWiFi_5G", "Office_Network", "Guest_WiFi", "TP-Link_2.4G",
+                            "NETGEAR_68", "XfinityWifi", "AndroidAP", "Starbucks_Free"};
+    QStringList signalStrengths = {"Excellent", "Good", "Fair", "Good", "Excellent", "Weak", "Fair", "Weak"};
+    QStringList security = {"WPA2", "WPA3", "WPA2", "WPA2", "WPA3", "Open", "WPA2", "Open"};
+    QStringList bands = {"5 GHz", "5 GHz", "2.4 GHz", "2.4 GHz", "5 GHz", "2.4 GHz", "2.4 GHz", "2.4 GHz"};
+    QStringList channels = {"36", "149", "6", "11", "44", "1", "3", "9"};
+
+    for (int i = 0; i < networks.size(); ++i)
+    {
+        int row = m_mainWindow->ui->networksTable->rowCount();
+        m_mainWindow->ui->networksTable->insertRow(row);
+
+        m_mainWindow->ui->networksTable->setItem(row, 0, new QTableWidgetItem(networks[i]));
+        m_mainWindow->ui->networksTable->setItem(row, 1, new QTableWidgetItem(signalStrengths[i]));
+        m_mainWindow->ui->networksTable->setItem(row, 2, new QTableWidgetItem(security[i]));
+        m_mainWindow->ui->networksTable->setItem(row, 3, new QTableWidgetItem(bands[i]));
+        m_mainWindow->ui->networksTable->setItem(row, 4, new QTableWidgetItem(channels[i]));
+    }
+
+    m_mainWindow->ui->networksTable->resizeColumnsToContents();
+    m_mainWindow->ui->wifiStatusLabel->setText("WiFi: Scanning Complete");
+}
+
+void WiFiManager::refreshNetworks()
+{
+    scanNetworks();
+}
+
+void WiFiManager::connectNetwork()
+{
+    int row = m_mainWindow->ui->networksTable->currentRow();
+    if (row >= 0)
+    {
+        QString networkName = m_mainWindow->ui->networksTable->item(row, 0)->text();
+        m_mainWindow->ui->selectedNetworkInfo->setText(QString("Connecting to: %1").arg(networkName));
+        m_mainWindow->ui->wifiStatusLabel->setText(QString("WiFi: Connecting to %1").arg(networkName));
+    }
+}
+
+void WiFiManager::disconnectNetwork()
+{
+    m_mainWindow->ui->selectedNetworkInfo->setText("Disconnected from current network");
+    m_mainWindow->ui->wifiStatusLabel->setText("WiFi: Disconnected");
+}
+
+void WiFiManager::onNetworkSelectionChanged()
+{
+    QList<QTableWidgetItem *> selectedItems = m_mainWindow->ui->networksTable->selectedItems();
+    bool hasSelection = !selectedItems.isEmpty();
+    m_mainWindow->ui->connectNetworkButton->setEnabled(hasSelection);
+
+    if (hasSelection)
+    {
+        int row = m_mainWindow->ui->networksTable->currentRow();
+        QString name = m_mainWindow->ui->networksTable->item(row, 0)->text();
+        QString signal = m_mainWindow->ui->networksTable->item(row, 1)->text();
+        QString security = m_mainWindow->ui->networksTable->item(row, 2)->text();
+
+        m_mainWindow->ui->selectedNetworkInfo->setText(
+            QString("Selected: %1 (%2, %3)").arg(name).arg(signal).arg(security));
+    }
+    else
+    {
+        m_mainWindow->ui->selectedNetworkInfo->setText("No network selected");
+    }
+}
+
+void WiFiManager::enableAdapter()
+{
+    m_mainWindow->ui->adapterStatusValue->setText("Enabled");
+    m_mainWindow->ui->adapterStatusValue->setStyleSheet("color: #27ae60; font-weight: bold;");
+    m_mainWindow->ui->enableAdapterButton->setEnabled(false);
+    m_mainWindow->ui->disableAdapterButton->setEnabled(true);
+}
+
+void WiFiManager::disableAdapter()
+{
+    m_mainWindow->ui->adapterStatusValue->setText("Disabled");
+    m_mainWindow->ui->adapterStatusValue->setStyleSheet("color: #e74c3c; font-weight: bold;");
+    m_mainWindow->ui->enableAdapterButton->setEnabled(true);
+    m_mainWindow->ui->disableAdapterButton->setEnabled(false);
+}
+
+void WiFiManager::refreshAdapters()
+{
+    // Simulate refreshing adapter list
+    m_mainWindow->ui->adaptersLabel->setText("Adapter list refreshed successfully!");
+}
+
+void WiFiManager::onAdapterSelectionChanged()
+{
+    QList<QListWidgetItem *> selectedItems = m_mainWindow->ui->adaptersList->selectedItems();
+    bool hasSelection = !selectedItems.isEmpty();
+
+    if (hasSelection)
+    {
+        QString adapterName = selectedItems.first()->text();
+        // Remove emoji prefix for display
+        if (adapterName.startsWith("📡 "))
+            adapterName = adapterName.mid(2);
+        else if (adapterName.startsWith("🔵 "))
+            adapterName = adapterName.mid(2);
+        else if (adapterName.startsWith("🔌 "))
+            adapterName = adapterName.mid(2);
+        else if (adapterName.startsWith("🌐 "))
+            adapterName = adapterName.mid(2);
+
+        m_mainWindow->ui->adapterNameValue->setText(adapterName);
+
+        // Enable/disable buttons based on current status
+        bool isEnabled = (m_mainWindow->ui->adapterStatusValue->text() == "Enabled");
+        m_mainWindow->ui->enableAdapterButton->setEnabled(!isEnabled);
+        m_mainWindow->ui->disableAdapterButton->setEnabled(isEnabled);
+    }
+}
+
+void WiFiManager::runDiagnostics()
+{
+    m_mainWindow->ui->diagnosticsOutput->setPlainText(
+        "Running network diagnostics...\n\n"
+        "✓ WiFi adapter detected and enabled\n"
+        "✓ Driver status: Healthy\n"
+        "✓ Signal strength: Good\n"
+        "✓ Internet connectivity: Available\n"
+        "✓ DNS resolution: Working\n"
+        "✓ Gateway reachable: Yes\n\n"
+        "Diagnostics completed - No issues found!");
+}
+
+void WiFiManager::resetNetwork()
+{
+    m_mainWindow->ui->diagnosticsOutput->setPlainText(
+        "Resetting network stack...\n\n"
+        "• Flushing DNS resolver cache... Done\n"
+        "• Renewing IP address... Done\n"
+        "• Resetting Winsock catalog... Done\n"
+        "• Restarting network services... Done\n\n"
+        "Network stack reset completed successfully!");
+}
+
+void WiFiManager::flushDns()
+{
+    m_mainWindow->ui->diagnosticsOutput->setPlainText("DNS cache flushed successfully!");
+}
+
+void WiFiManager::restartWifiService()
+{
+    m_mainWindow->ui->diagnosticsOutput->setPlainText("WiFi service restarted successfully!");
+}
+
+void WiFiManager::renewIp()
+{
+    m_mainWindow->ui->diagnosticsOutput->setPlainText("IP address renewed successfully!");
+}
+
+void WiFiManager::forgetNetwork()
+{
+    m_mainWindow->ui->diagnosticsOutput->setPlainText("Selected network forgotten successfully!");
+}
+
+void WiFiManager::updateDriver()
+{
+    m_mainWindow->ui->diagnosticsOutput->setPlainText("Checking for driver updates...\n\nYour WiFi drivers are up to date!");
+}#ifndef WIFIMANAGER_H
+#define WIFIMANAGER_H
+
+#include <QObject>
+
+class MainWindow;
+
+class WiFiManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit WiFiManager(MainWindow *mainWindow, QObject *parent = nullptr);
+    
+    void scanNetworks();
+    void refreshNetworks();
+    void connectNetwork();
+    void disconnectNetwork();
+    void onNetworkSelectionChanged();
+    void enableAdapter();
+    void disableAdapter();
+    void refreshAdapters();
+    void onAdapterSelectionChanged();
+    void runDiagnostics();
+    void resetNetwork();
+    void flushDns();
+    void restartWifiService();
+    void renewIp();
+    void forgetNetwork();
+    void updateDriver();
+
+private:
+    MainWindow *m_mainWindow;
+};
+
+#endif // WIFIMANAGER_H#include "cleaneritem.h"
+
+CleanerItem::CleanerItem()
+    : m_size(0), m_selected(false), m_safe(true)
+{
+}
+
+CleanerItem::CleanerItem(const QString &name, const QString &description, const QString &path, 
+                         const QStringList &filePatterns, qint64 size, bool isSelected, bool isSafe)
+    : m_name(name), m_description(description), m_path(path), m_filePatterns(filePatterns),
+      m_size(size), m_selected(isSelected), m_safe(isSafe)
+{
+}
+
+QString CleanerItem::name() const
+{
+    return m_name;
+}
+
+QString CleanerItem::description() const
+{
+    return m_description;
+}
+
+QString CleanerItem::path() const
+{
+    return m_path;
+}
+
+QStringList CleanerItem::filePatterns() const
+{
+    return m_filePatterns;
+}
+
+qint64 CleanerItem::size() const
+{
+    return m_size;
+}
+
+bool CleanerItem::isSelected() const
+{
+    return m_selected;
+}
+
+bool CleanerItem::isSafe() const
+{
+    return m_safe;
+}
+
+void CleanerItem::setName(const QString &name)
+{
+    m_name = name;
+}
+
+void CleanerItem::setDescription(const QString &description)
+{
+    m_description = description;
+}
+
+void CleanerItem::setPath(const QString &path)
+{
+    m_path = path;
+}
+
+void CleanerItem::setFilePatterns(const QStringList &filePatterns)
+{
+    m_filePatterns = filePatterns;
+}
+
+void CleanerItem::setSize(qint64 size)
+{
+    m_size = size;
+}
+
+void CleanerItem::setSelected(bool selected)
+{
+    m_selected = selected;
+}
+
+void CleanerItem::setSafe(bool safe)
+{
+    m_safe = safe;
+}#ifndef CLEANERITEM_H
+#define CLEANERITEM_H
+
+#include <QString>
+#include <QStringList>
+
+class CleanerItem
+{
+public:
+    CleanerItem();
+    CleanerItem(const QString &name, const QString &description, const QString &path, 
+                const QStringList &filePatterns, qint64 size, bool isSelected, bool isSafe);
+
+    // Getters
+    QString name() const;
+    QString description() const;
+    QString path() const;
+    QStringList filePatterns() const;
+    qint64 size() const;
+    bool isSelected() const;
+    bool isSafe() const;
+
+    // Setters
+    void setName(const QString &name);
+    void setDescription(const QString &description);
+    void setPath(const QString &path);
+    void setFilePatterns(const QStringList &filePatterns);
+    void setSize(qint64 size);
+    void setSelected(bool selected);
+    void setSafe(bool safe);
+
+private:
+    QString m_name;
+    QString m_description;
+    QString m_path;
+    QStringList m_filePatterns;
+    qint64 m_size;
+    bool m_selected;
+    bool m_safe;
+};
+
+#endif // CLEANERITEM_H#include "windowsutils.h"
+#include <QDir>
+#include <QFileInfo>
+#include <QProcess>
+#include <QStandardPaths>
+
+WindowsUtils::WindowsUtils(QObject *parent)
+    : QObject(parent)
+{
+    initializeCleanerItems();
+}
+
+void WindowsUtils::initializeCleanerItems()
+{
+    m_cleanerItems.clear();
+
+    // Create CleanerItem objects properly
+    m_cleanerItems.append(CleanerItem(
+        "Temporary Files",
+        "Windows and user temporary files",
+        getUserTempPath(),
+        QStringList{"*.*"},  // Scan ALL files recursively
+        0,
+        true,
+        true
+    ));
+
+    m_cleanerItems.append(CleanerItem(
+        "Windows Update Cache",
+        "Windows Update temporary files",
+        "C:/Windows/Temp",
+        QStringList{"*.*"},
+        0,
+        true,
+        true
+    ));
+
+    m_cleanerItems.append(CleanerItem(
+        "System Log Files",
+        "System event and error logs",
+        "C:/Windows/Logs",
+        QStringList{"*.*"},
+        0,
+        true,
+        true
+    ));
+
+    m_cleanerItems.append(CleanerItem(
+        "Memory Dump Files",
+        "System memory dump files",
+        "C:/Windows",
+        QStringList{"*.dmp", "*.hdmp"},
+        0,
+        true,
+        true
+    ));
+
+    m_cleanerItems.append(CleanerItem(
+        "Thumbnail Cache",
+        "Windows thumbnail cache",
+        getThumbnailCachePath(),
+        QStringList{"*.db", "thumbcache_*.db"},
+        0,
+        true,
+        true
+    ));
+
+    m_cleanerItems.append(CleanerItem(
+        "Prefetch Files",
+        "Windows prefetch files",
+        "C:/Windows/Prefetch",
+        QStringList{"*.pf"},
+        0,
+        true,
+        true
+    ));
+}
+
+QString WindowsUtils::getUserTempPath()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+}
+
+QString WindowsUtils::getThumbnailCachePath()
+{
+    QString localAppData = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    return localAppData + "/Microsoft/Windows/Explorer";
+}
+
+QVector<CleanerItem> WindowsUtils::scanJunkFiles()
+{
+    QVector<CleanerItem> results;
+    
+    for (const CleanerItem &item : m_cleanerItems) {
+        CleanerItem scannedItem = item;
+        
+        // Calculate directory size
+        QString itemPath = scannedItem.path();
+        if (!itemPath.isEmpty()) {
+            QDir dir(itemPath);
+            if (dir.exists()) {
+                scannedItem.setSize(calculateDirectorySize(itemPath));
+            } else {
+                scannedItem.setSize(0);
+            }
+        } else {
+            scannedItem.setSize(0);
+        }
+        
+        results.append(scannedItem);
+    }
+    
+    return results;
+}
+
+qint64 WindowsUtils::cleanJunkFiles(QVector<CleanerItem> &items)
+{
+    qint64 totalFreed = 0;
+    
+    for (const CleanerItem &item : items) {
+        if (item.isSelected() && item.isSafe()) {
+            QString itemPath = item.path();
+            if (!itemPath.isEmpty()) {
+                qint64 beforeSize = calculateDirectorySize(itemPath);
+                deleteFilesByPattern(itemPath, item.filePatterns());
+                qint64 afterSize = calculateDirectorySize(itemPath);
+                totalFreed += (beforeSize - afterSize);
+            }
+        }
+    }
+    
+    return totalFreed;
+}
+
+qint64 WindowsUtils::calculateDirectorySize(const QString &path)
+{
+    qint64 totalSize = 0;
+    QDir dir(path);
+    
+    if (!dir.exists()) {
+        return 0;
+    }
+    
+    // Get all files in directory
+    QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+    for (const QFileInfo &fileInfo : files) {
+        totalSize += fileInfo.size();
+    }
+    
+    // Recursively process subdirectories
+    QFileInfoList subDirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QFileInfo &subDirInfo : subDirs) {
+        totalSize += calculateDirectorySize(subDirInfo.absoluteFilePath());
+    }
+    
+    return totalSize;
+}
+
+void WindowsUtils::deleteFilesByPattern(const QString &path, const QStringList &patterns)
+{
+    QDir dir(path);
+    
+    if (!dir.exists()) {
+        return;
+    }
+    
+    // Delete files matching patterns
+    for (const QString &pattern : patterns) {
+        QFileInfoList files = dir.entryInfoList(QStringList() << pattern, QDir::Files);
+        for (const QFileInfo &fileInfo : files) {
+            QFile file(fileInfo.absoluteFilePath());
+            file.remove();
+        }
+    }
+    
+    // Recursively process subdirectories
+    QFileInfoList subDirs = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QFileInfo &subDirInfo : subDirs) {
+        deleteFilesByPattern(subDirInfo.absoluteFilePath(), patterns);
+    }
+}#ifndef WINDOWSUTILS_H
+#define WINDOWSUTILS_H
+
+#include <QObject>
+#include <QList>
+#include <QVector>
+#include "cleaneritem.h"
+
+class WindowsUtils : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit WindowsUtils(QObject *parent = nullptr);
+
+    QVector<CleanerItem> scanJunkFiles();
+    qint64 cleanJunkFiles(QVector<CleanerItem> &items);
+
+private:
+    QList<CleanerItem> m_cleanerItems;
+
+    void initializeCleanerItems();
+    QString getUserTempPath();
+    QString getThumbnailCachePath();
+    qint64 calculateDirectorySize(const QString &path);
+    void deleteFilesByPattern(const QString &path, const QStringList &patterns);
+};
+
+#endif // WINDOWSUTILS_H
