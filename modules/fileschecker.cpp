@@ -22,14 +22,25 @@ FilesChecker::FilesChecker(MainWindow *mainWindow, QObject *parent)
 {
     m_largeFilesWatcher = new QFutureWatcher<QVector<FileInfo>>(this);
     m_duplicateFilesWatcher = new QFutureWatcher<QVector<DuplicateFile>>(this);
-
+    
     connect(m_largeFilesWatcher, &QFutureWatcher<QVector<FileInfo>>::finished,
             this, &FilesChecker::onLargeFilesScanFinished);
     connect(m_duplicateFilesWatcher, &QFutureWatcher<QVector<DuplicateFile>>::finished,
             this, &FilesChecker::onDuplicateFilesScanFinished);
-
-    // Setup the tree widget
-    setupDuplicateFilesTree();
+    
+    // Setup the tree widget when FilesChecker is created
+    if (m_mainWindow && m_mainWindow->ui) {
+        setupDuplicateFilesTree();
+        
+        // Connect duplicate files tree signals
+        connect(m_mainWindow->ui->duplicateFilesTree, &QTreeWidget::itemClicked,
+                this, &FilesChecker::onDuplicateFilesTreeItemClicked);
+        
+        // Enable context menu for duplicate files tree
+        m_mainWindow->ui->duplicateFilesTree->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(m_mainWindow->ui->duplicateFilesTree, &QTreeWidget::customContextMenuRequested,
+                this, &FilesChecker::onDuplicateFilesContextMenu);
+    }
 }
 
 FilesChecker::~FilesChecker()
@@ -1016,4 +1027,311 @@ void FilesChecker::setupDuplicateFilesTree()
     tree->header()->setSectionResizeMode(1, QHeaderView::Stretch); // File name stretches
     tree->header()->setDefaultAlignment(Qt::AlignLeft);
     tree->header()->setSectionsClickable(true);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void FilesChecker::onDuplicateFilesTreeItemClicked(QTreeWidgetItem *item, int column)
+{
+    if (!item || !item->parent()) return; // Only handle file items, not group headers
+    
+    // Handle clicks in the action column (0)
+    if (column == 0) {
+        QTreeWidgetItem *groupItem = item->parent();
+        bool isKeeping = item->data(0, Qt::UserRole).toBool();
+        
+        if (isKeeping) {
+            // Switch to delete
+            item->setText(0, "🗑️ Delete");
+            item->setData(0, Qt::UserRole, false);
+            item->setForeground(0, QBrush(QColor(220, 53, 69))); // Red
+        } else {
+            // Switch to keep
+            item->setText(0, "✅ Keep");
+            item->setData(0, Qt::UserRole, true);
+            item->setForeground(0, QBrush(QColor(40, 167, 69))); // Green
+        }
+        
+        // Ensure at least one file is kept in the group
+        ensureOneFileKeptPerGroup(groupItem);
+        
+        // Update delete button state
+        updateDuplicateDeleteButtonState();
+    }
+    
+    // Handle double-click on file name to open location (column 1)
+    if (column == 1) {
+        QString filePath = item->text(4); // Full path from hidden column
+        if (!filePath.isEmpty()) {
+            openFileLocation(filePath);
+        }
+    }
+}
+
+void FilesChecker::updateDuplicateDeleteButtonState()
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+    
+    bool hasFilesToDelete = false;
+    QTreeWidget *tree = m_mainWindow->ui->duplicateFilesTree;
+    
+    for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *groupItem = tree->topLevelItem(i);
+        int checkedCount = 0;
+        
+        for (int j = 0; j < groupItem->childCount(); ++j) {
+            QTreeWidgetItem *fileItem = groupItem->child(j);
+            if (fileItem->data(0, Qt::UserRole).toBool()) {
+                checkedCount++;
+            }
+        }
+        
+        // If at least one file is checked in this group, and there are other files to keep
+        if (checkedCount > 0 && checkedCount < groupItem->childCount()) {
+            hasFilesToDelete = true;
+            break;
+        }
+    }
+    
+    m_mainWindow->ui->deleteDuplicateFilesButton->setEnabled(hasFilesToDelete);
+}
+
+void FilesChecker::ensureOneFileKeptPerGroup(QTreeWidgetItem *groupItem)
+{
+    if (!groupItem) return;
+    
+    bool hasKeptFile = false;
+    for (int i = 0; i < groupItem->childCount(); ++i) {
+        QTreeWidgetItem *fileItem = groupItem->child(i);
+        if (fileItem->data(0, Qt::UserRole).toBool()) {
+            hasKeptFile = true;
+            break;
+        }
+    }
+    
+    // If no files are kept, keep the first one and show message
+    if (!hasKeptFile && groupItem->childCount() > 0) {
+        QTreeWidgetItem *firstItem = groupItem->child(0);
+        firstItem->setText(0, "✅ Keep");
+        firstItem->setData(0, Qt::UserRole, true);
+        firstItem->setForeground(0, QBrush(QColor(40, 167, 69)));
+        
+        // Show gentle reminder (only once per session maybe)
+        static bool reminderShown = false;
+        if (!reminderShown && m_mainWindow) {
+            QMessageBox::information(m_mainWindow, "Duplicate Files", 
+                                   "💡 You must keep at least one file from each duplicate group.\n"
+                                   "I've automatically kept the newest file for you.");
+            reminderShown = true;
+        }
+    }
+}
+
+void FilesChecker::selectAllDuplicateFiles()
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+    
+    QTreeWidget *tree = m_mainWindow->ui->duplicateFilesTree;
+    for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *groupItem = tree->topLevelItem(i);
+        for (int j = 0; j < groupItem->childCount(); ++j) {
+            QTreeWidgetItem *fileItem = groupItem->child(j);
+            fileItem->setText(0, "✅ Keep");
+            fileItem->setData(0, Qt::UserRole, true);
+            fileItem->setForeground(0, QBrush(QColor(40, 167, 69)));
+        }
+    }
+    updateDuplicateDeleteButtonState();
+}
+
+void FilesChecker::deselectAllDuplicateFiles()
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+    
+    QTreeWidget *tree = m_mainWindow->ui->duplicateFilesTree;
+    for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *groupItem = tree->topLevelItem(i);
+        for (int j = 0; j < groupItem->childCount(); ++j) {
+            QTreeWidgetItem *fileItem = groupItem->child(j);
+            fileItem->setText(0, "🗑️ Delete");
+            fileItem->setData(0, Qt::UserRole, false);
+            fileItem->setForeground(0, QBrush(QColor(220, 53, 69)));
+        }
+        // Ensure at least one file remains kept in each group
+        if (groupItem->childCount() > 0) {
+            QTreeWidgetItem *firstItem = groupItem->child(0);
+            firstItem->setText(0, "✅ Keep");
+            firstItem->setData(0, Qt::UserRole, true);
+            firstItem->setForeground(0, QBrush(QColor(40, 167, 69)));
+        }
+    }
+    updateDuplicateDeleteButtonState();
+}
+
+void FilesChecker::keepNewestInAllGroups()
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+    
+    QTreeWidget *tree = m_mainWindow->ui->duplicateFilesTree;
+    
+    for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *groupItem = tree->topLevelItem(i);
+        
+        // Keep only the first file (newest) in each group
+        for (int j = 0; j < groupItem->childCount(); ++j) {
+            QTreeWidgetItem *fileItem = groupItem->child(j);
+            if (j == 0) {
+                fileItem->setText(0, "✅ Keep");
+                fileItem->setData(0, Qt::UserRole, true);
+                fileItem->setForeground(0, QBrush(QColor(40, 167, 69)));
+            } else {
+                fileItem->setText(0, "🗑️ Delete");
+                fileItem->setData(0, Qt::UserRole, false);
+                fileItem->setForeground(0, QBrush(QColor(220, 53, 69)));
+            }
+        }
+    }
+    
+    updateDuplicateDeleteButtonState();
+}
+
+void FilesChecker::selectAllForDeletion()
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+    
+    QTreeWidget *tree = m_mainWindow->ui->duplicateFilesTree;
+    
+    for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *groupItem = tree->topLevelItem(i);
+        
+        // Mark all but first file for deletion in each group
+        for (int j = 0; j < groupItem->childCount(); ++j) {
+            QTreeWidgetItem *fileItem = groupItem->child(j);
+            if (j == 0) {
+                fileItem->setText(0, "✅ Keep");
+                fileItem->setData(0, Qt::UserRole, true);
+                fileItem->setForeground(0, QBrush(QColor(40, 167, 69)));
+            } else {
+                fileItem->setText(0, "🗑️ Delete");
+                fileItem->setData(0, Qt::UserRole, false);
+                fileItem->setForeground(0, QBrush(QColor(220, 53, 69)));
+            }
+        }
+    }
+    
+    updateDuplicateDeleteButtonState();
+}
+
+void FilesChecker::onDuplicateFilesContextMenu(const QPoint &pos)
+{
+    if (!m_mainWindow || !m_mainWindow->ui) return;
+    
+    QTreeWidget *tree = m_mainWindow->ui->duplicateFilesTree;
+    QTreeWidgetItem *item = tree->itemAt(pos);
+    
+    if (!item) return;
+    
+    QMenu *contextMenu = new QMenu(m_mainWindow);
+    
+    // For file items
+    if (item->parent()) {
+        QAction *openLocationAction = contextMenu->addAction("📁 Open File Location");
+        QAction *keepThisAction = contextMenu->addAction("✅ Keep This File");
+        QAction *deleteThisAction = contextMenu->addAction("🗑️ Delete This File");
+        contextMenu->addSeparator();
+        QAction *keepAllNewestAction = contextMenu->addAction("⭐ Keep Newest in Each Group");
+        QAction *selectAllAction = contextMenu->addAction("📋 Select All for Deletion");
+        
+        QAction *selectedAction = contextMenu->exec(tree->viewport()->mapToGlobal(pos));
+        
+        if (selectedAction == openLocationAction) {
+            QString filePath = item->text(4);
+            if (!filePath.isEmpty()) {
+                openFileLocation(filePath);
+            }
+        } else if (selectedAction == keepThisAction) {
+            item->setText(0, "✅ Keep");
+            item->setData(0, Qt::UserRole, true);
+            item->setForeground(0, QBrush(QColor(40, 167, 69)));
+            ensureOneFileKeptPerGroup(item->parent());
+        } else if (selectedAction == deleteThisAction) {
+            item->setText(0, "🗑️ Delete");
+            item->setData(0, Qt::UserRole, false);
+            item->setForeground(0, QBrush(QColor(220, 53, 69)));
+            ensureOneFileKeptPerGroup(item->parent());
+        } else if (selectedAction == keepAllNewestAction) {
+            keepNewestInAllGroups();
+        } else if (selectedAction == selectAllAction) {
+            selectAllForDeletion();
+        }
+    }
+    
+    delete contextMenu;
+    updateDuplicateDeleteButtonState();
+}
+
+void FilesChecker::showFileProperties(const QString &filePath)
+{
+    if (!m_mainWindow) return;
+    
+    QFileInfo fileInfo(filePath);
+    if (!fileInfo.exists()) {
+        QMessageBox::information(m_mainWindow, "File Properties", "File does not exist.");
+        return;
+    }
+    
+    QString properties = QString(
+        "File Properties:\n\n"
+        "Name: %1\n"
+        "Path: %2\n"
+        "Size: %3\n"
+        "Created: %4\n"
+        "Modified: %5\n"
+        "Type: %6 file\n"
+        "Readable: %7\n"
+        "Writable: %8"
+    ).arg(
+        fileInfo.fileName(),
+        fileInfo.absolutePath(),
+        formatFileSizeDisplay(fileInfo.size()),
+        fileInfo.birthTime().toString("yyyy-MM-dd hh:mm:ss"),
+        fileInfo.lastModified().toString("yyyy-MM-dd hh:mm:ss"),
+        fileInfo.suffix().isEmpty() ? "Unknown" : fileInfo.suffix().toUpper(),
+        fileInfo.isReadable() ? "Yes" : "No",
+        fileInfo.isWritable() ? "Yes" : "No"
+    );
+    
+    QMessageBox::information(m_mainWindow, "File Properties", properties);
+}
+
+QString FilesChecker::formatFileSizeDisplay(qint64 size)
+{
+    return formatFileSize(size); // Use the existing static method
 }

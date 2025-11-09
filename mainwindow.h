@@ -164,18 +164,6 @@ void selectAllForDeletion();
     void cancelAllOperations();
     void debugTableState();
     void updateDeleteButtonState();
-
-    // Duplicate files management
-    void onDuplicateFilesTreeItemClicked(QTreeWidgetItem *item, int column);
-    void updateDuplicateDeleteButtonState();
-    void ensureOneFilePerGroup(QTreeWidgetItem *groupItem);
-    void selectAllDuplicateFiles();
-    void deselectAllDuplicateFiles();
-    void onDuplicateFilesContextMenu(const QPoint &pos);
-    void showFileProperties(const QString &filePath);
-    QString formatFileSize(qint64 size);
-
-    void onDuplicateFilesTreeItemChanged(QTreeWidgetItem *item, int column);
 };
 
 #endif // MAINWINDOW_H
