@@ -73,11 +73,9 @@ private slots:
     void on_scanSystemButton_clicked();
     void on_cleanSystemButton_clicked();
     void on_selectAllSystemButton_clicked();
-    void on_scanBrowsersButton_clicked();
-    void on_cleanBrowsersButton_clicked();
 
     // Software Uninstaller slots
-    void on_refreshSoftwareButton_clicked();
+    void on_scanSoftwareButton_clicked();
     void on_searchSoftwareInput_textChanged(const QString &searchText);
     void on_softwareTable_itemSelectionChanged();
     void on_uninstallSoftwareButton_clicked();
@@ -139,6 +137,8 @@ private slots:
     void on_largeFilesPathInput_textChanged(const QString &text);
     void on_duplicateFilesPathInput_textChanged(const QString &text);
 
+    void on_cancelSoftwareScanButton_clicked(); // Add this
+
 private:
     // Modular managers
     SystemCleaner *m_systemCleaner;
@@ -151,8 +151,8 @@ private:
 
     void ensureOneFileKeptPerGroup(QTreeWidgetItem *groupItem);
 
-void keepNewestInAllGroups();
-void selectAllForDeletion();
+    void keepNewestInAllGroups();
+    void selectAllForDeletion();
 
     // Private methods
     void setupConnections();

@@ -967,334 +967,13 @@
                                                             </item>
                                                         </layout>
                                                     </widget>
-                                                    <widget class="QWidget" name="browserCleanerTab">
-                                                        <attribute name="title">
-                                                            <string>Browser Cleaner</string>
-                                                        </attribute>
-                                                        <layout class="QVBoxLayout"
-                                                            name="verticalLayout_7">
-                                                            <item>
-                                                                <widget class="QLabel"
-                                                                    name="browserCleanerLabel">
-                                                                    <property name="font">
-                                                                        <font>
-                                                                            <pointsize>11</pointsize>
-                                                                        </font>
-                                                                    </property>
-                                                                    <property name="styleSheet">
-                                                                        <string notr="true">QLabel {
-                                                                            color: #7f8c8d;
-                                                                            padding: 10px;
-                                                                            }</string>
-                                                                    </property>
-                                                                    <property name="text">
-                                                                        <string>Clean browser cache, history, cookies, and other browsing data.</string>
-                                                                    </property>
-                                                                    <property name="alignment">
-                                                                        <set>Qt::AlignCenter</set>
-                                                                    </property>
-                                                                </widget>
-                                                            </item>
-                                                            <item>
-                                                                <widget class="QListWidget"
-                                                                    name="browserList">
-                                                                    <property name="styleSheet">
-                                                                        <string notr="true">QListWidget
-                                                                            {
-                                                                            border: 1px solid
-                                                                            #ecf0f1;
-                                                                            border-radius: 5px;
-                                                                            background-color:
-                                                                            #f8f9fa;
-                                                                            }
-
-                                                                            QListWidget::item {
-                                                                            border-bottom: 1px solid
-                                                                            #ecf0f1;
-                                                                            padding: 8px;
-                                                                            color: #2c3e50;
-                                                                            }
-                                                                            QListWidget::item:selected
-                                                                            {
-                                                                            background-color:
-                                                                            #1abc9c;
-                                                                            color: white;
-                                                                            }</string>
-                                                                    </property>
-                                                                    <item>
-                                                                        <property name="text">
-                                                                            <string>🌐 Google Chrome</string>
-                                                                        </property>
-                                                                    </item>
-                                                                    <item>
-                                                                        <property name="text">
-                                                                            <string>🌐 Mozilla
-                                                                                Firefox</string>
-                                                                        </property>
-                                                                    </item>
-                                                                    <item>
-                                                                        <property name="text">
-                                                                            <string>🌐 Microsoft
-                                                                                Edge</string>
-                                                                        </property>
-                                                                    </item>
-                                                                    <item>
-                                                                        <property name="text">
-                                                                            <string>🌐 Opera</string>
-                                                                        </property>
-                                                                    </item>
-                                                                </widget>
-                                                            </item>
-                                                            <item>
-                                                                <widget class="QGroupBox"
-                                                                    name="browserDataGroup">
-                                                                    <property name="title">
-                                                                        <string>Data to Clean</string>
-                                                                    </property>
-                                                                    <property name="styleSheet">
-                                                                        <string notr="true">QGroupBox
-                                                                            {
-                                                                            font-weight: bold;
-                                                                            border: 1px solid
-                                                                            #ecf0f1;
-                                                                            border-radius: 5px;
-                                                                            margin-top: 10px;
-                                                                            padding-top: 10px;
-                                                                            color: #2c3e50;
-                                                                            }
-
-                                                                            QGroupBox::title {
-                                                                            subcontrol-origin:
-                                                                            margin;
-                                                                            subcontrol-position: top
-                                                                            center;
-                                                                            padding: 0 5px;
-                                                                            color: #2c3e50;
-                                                                            }</string>
-                                                                    </property>
-                                                                    <layout class="QGridLayout"
-                                                                        name="gridLayout">
-                                                                        <item row="0" column="0">
-                                                                            <widget
-                                                                                class="QCheckBox"
-                                                                                name="cacheCheckbox">
-                                                                                <property
-                                                                                    name="styleSheet">
-                                                                                    <string
-                                                                                        notr="true">QCheckBox
-                                                                                        {
-                                                                                        color:
-                                                                                        #2c3e50;
-                                                                                        }</string>
-                                                                                </property>
-                                                                                <property
-                                                                                    name="text">
-                                                                                    <string>Browser
-                                                                                        Cache</string>
-                                                                                </property>
-                                                                            </widget>
-                                                                        </item>
-                                                                        <item row="0" column="1">
-                                                                            <widget
-                                                                                class="QCheckBox"
-                                                                                name="historyCheckbox">
-                                                                                <property
-                                                                                    name="styleSheet">
-                                                                                    <string
-                                                                                        notr="true">QCheckBox
-                                                                                        {
-                                                                                        color:
-                                                                                        #2c3e50;
-                                                                                        }</string>
-                                                                                </property>
-                                                                                <property
-                                                                                    name="text">
-                                                                                    <string>Browsing
-                                                                                        History</string>
-                                                                                </property>
-                                                                            </widget>
-                                                                        </item>
-                                                                        <item row="1" column="0">
-                                                                            <widget
-                                                                                class="QCheckBox"
-                                                                                name="cookiesCheckbox">
-                                                                                <property
-                                                                                    name="styleSheet">
-                                                                                    <string
-                                                                                        notr="true">QCheckBox
-                                                                                        {
-                                                                                        color:
-                                                                                        #2c3e50;
-                                                                                        }</string>
-                                                                                </property>
-                                                                                <property
-                                                                                    name="text">
-                                                                                    <string>Cookies</string>
-                                                                                </property>
-                                                                            </widget>
-                                                                        </item>
-                                                                        <item row="1" column="1">
-                                                                            <widget
-                                                                                class="QCheckBox"
-                                                                                name="downloadsCheckbox">
-                                                                                <property
-                                                                                    name="styleSheet">
-                                                                                    <string
-                                                                                        notr="true">QCheckBox
-                                                                                        {
-                                                                                        color:
-                                                                                        #2c3e50;
-                                                                                        }</string>
-                                                                                </property>
-                                                                                <property
-                                                                                    name="text">
-                                                                                    <string>Download
-                                                                                        History</string>
-                                                                                </property>
-                                                                            </widget>
-                                                                        </item>
-                                                                        <item row="2" column="0">
-                                                                            <widget
-                                                                                class="QCheckBox"
-                                                                                name="passwordsCheckbox">
-                                                                                <property
-                                                                                    name="styleSheet">
-                                                                                    <string
-                                                                                        notr="true">QCheckBox
-                                                                                        {
-                                                                                        color:
-                                                                                        #2c3e50;
-                                                                                        }</string>
-                                                                                </property>
-                                                                                <property
-                                                                                    name="text">
-                                                                                    <string>Saved
-                                                                                        Passwords</string>
-                                                                                </property>
-                                                                            </widget>
-                                                                        </item>
-                                                                        <item row="2" column="1">
-                                                                            <widget
-                                                                                class="QCheckBox"
-                                                                                name="formDataCheckbox">
-                                                                                <property
-                                                                                    name="styleSheet">
-                                                                                    <string
-                                                                                        notr="true">QCheckBox
-                                                                                        {
-                                                                                        color:
-                                                                                        #2c3e50;
-                                                                                        }</string>
-                                                                                </property>
-                                                                                <property
-                                                                                    name="text">
-                                                                                    <string>Form
-                                                                                        Data</string>
-                                                                                </property>
-                                                                            </widget>
-                                                                        </item>
-                                                                    </layout>
-                                                                </widget>
-                                                            </item>
-                                                            <item>
-                                                                <layout class="QHBoxLayout"
-                                                                    name="horizontalLayout_4">
-                                                                    <item>
-                                                                        <widget class="QPushButton"
-                                                                            name="scanBrowsersButton">
-                                                                            <property name="font">
-                                                                                <font>
-                                                                                    <pointsize>10</pointsize>
-                                                                                    <weight>75</weight>
-                                                                                    <bold>true</bold>
-                                                                                </font>
-                                                                            </property>
-                                                                            <property
-                                                                                name="styleSheet">
-                                                                                <string notr="true">QPushButton
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #3498db;
-                                                                                    color: white;
-                                                                                    border: none;
-                                                                                    padding: 10px
-                                                                                    20px;
-                                                                                    border-radius:
-                                                                                    5px;
-                                                                                    min-width:
-                                                                                    120px;
-                                                                                    }
-                                                                                    QPushButton:hover
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #2980b9;
-                                                                                    }</string>
-                                                                            </property>
-                                                                            <property name="text">
-                                                                                <string>Scan
-                                                                                    Browsers</string>
-                                                                            </property>
-                                                                        </widget>
-                                                                    </item>
-                                                                    <item>
-                                                                        <widget class="QPushButton"
-                                                                            name="cleanBrowsersButton">
-                                                                            <property name="enabled">
-                                                                                <bool>false</bool>
-                                                                            </property>
-                                                                            <property name="font">
-                                                                                <font>
-                                                                                    <pointsize>10</pointsize>
-                                                                                    <weight>75</weight>
-                                                                                    <bold>true</bold>
-                                                                                </font>
-                                                                            </property>
-                                                                            <property
-                                                                                name="styleSheet">
-                                                                                <string notr="true">QPushButton
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #1abc9c;
-                                                                                    color: white;
-                                                                                    border: none;
-                                                                                    padding: 10px
-                                                                                    20px;
-                                                                                    border-radius:
-                                                                                    5px;
-                                                                                    min-width:
-                                                                                    120px;
-                                                                                    }
-                                                                                    QPushButton:hover
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #16a085;
-                                                                                    }
-                                                                                    QPushButton:disabled
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #bdc3c7;
-                                                                                    }</string>
-                                                                            </property>
-                                                                            <property name="text">
-                                                                                <string>Clean
-                                                                                    Selected</string>
-                                                                            </property>
-                                                                        </widget>
-                                                                    </item>
-                                                                </layout>
-                                                            </item>
-                                                        </layout>
-                                                    </widget>
-                                                    <widget class="QWidget"
-                                                        name="softwareUninstallerTab">
+                                                    <widget class="QWidget" name="softwareUninstallerTab">
                                                         <attribute name="title">
                                                             <string>Software Uninstaller</string>
                                                         </attribute>
-                                                        <layout class="QVBoxLayout"
-                                                            name="verticalLayout_8">
+                                                        <layout class="QVBoxLayout" name="verticalLayout_8">
                                                             <item>
-                                                                <widget class="QLabel"
-                                                                    name="softwareUninstallerLabel">
+                                                                <widget class="QLabel" name="softwareUninstallerLabel">
                                                                     <property name="font">
                                                                         <font>
                                                                             <pointsize>11</pointsize>
@@ -1304,7 +983,7 @@
                                                                         <string notr="true">QLabel {
                                                                             color: #7f8c8d;
                                                                             padding: 10px;
-                                                                            }</string>
+                                                                        }</string>
                                                                     </property>
                                                                     <property name="text">
                                                                         <string>Uninstall applications and programs from your system. View installed software with details.</string>
@@ -1315,114 +994,117 @@
                                                                 </widget>
                                                             </item>
                                                             <item>
-                                                                <layout class="QHBoxLayout"
-                                                                    name="horizontalLayout_5">
+                                                                <layout class="QHBoxLayout" name="horizontalLayout_5">
                                                                     <item>
-                                                                        <widget class="QLineEdit"
-                                                                            name="searchSoftwareInput">
-                                                                            <property
-                                                                                name="styleSheet">
-                                                                                <string notr="true">QLineEdit
-                                                                                    {
-                                                                                    border: 1px
-                                                                                    solid #ecf0f1;
-                                                                                    border-radius:
-                                                                                    5px;
+                                                                        <widget class="QLineEdit" name="searchSoftwareInput">
+                                                                            <property name="styleSheet">
+                                                                                <string notr="true">QLineEdit {
+                                                                                    border: 1px solid #ecf0f1;
+                                                                                    border-radius: 5px;
                                                                                     padding: 8px;
-                                                                                    background-color:
-                                                                                    #f8f9fa;
+                                                                                    background-color: #f8f9fa;
                                                                                     color: #2c3e50;
-                                                                                    }</string>
+                                                                                }</string>
                                                                             </property>
-                                                                            <property
-                                                                                name="placeholderText">
-                                                                                <string>Search
-                                                                                    installed
-                                                                                    software...</string>
+                                                                            <property name="placeholderText">
+                                                                                <string>Search installed software...</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
                                                                     <item>
-                                                                        <widget class="QPushButton"
-                                                                            name="refreshSoftwareButton">
+                                                                        <widget class="QPushButton" name="scanSoftwareButton">
                                                                             <property name="font">
                                                                                 <font>
                                                                                     <pointsize>9</pointsize>
                                                                                 </font>
                                                                             </property>
-                                                                            <property
-                                                                                name="styleSheet">
-                                                                                <string notr="true">QPushButton
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #3498db;
+                                                                            <property name="styleSheet">
+                                                                                <string notr="true">QPushButton {
+                                                                                    background-color: #27ae60;
                                                                                     color: white;
                                                                                     border: none;
-                                                                                    padding: 8px
-                                                                                    15px;
-                                                                                    border-radius:
-                                                                                    5px;
-                                                                                    }
-                                                                                    QPushButton:hover
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #2980b9;
-                                                                                    }</string>
+                                                                                    padding: 8px 15px;
+                                                                                    border-radius: 5px;
+                                                                                }
+                                                                                QPushButton:hover {
+                                                                                    background-color: #219653;
+                                                                                }
+                                                                                QPushButton:disabled {
+                                                                                    background-color: #bdc3c7;
+                                                                                }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Refresh List</string>
+                                                                                <string>Scan Software</string>
+                                                                            </property>
+                                                                        </widget>
+                                                                    </item>
+                                                                    <item>
+                                                                        <widget class="QPushButton" name="cancelSoftwareScanButton">
+                                                                            <property name="enabled">
+                                                                                <bool>false</bool>
+                                                                            </property>
+                                                                            <property name="font">
+                                                                                <font>
+                                                                                    <pointsize>9</pointsize>
+                                                                                </font>
+                                                                            </property>
+                                                                            <property name="styleSheet">
+                                                                                <string notr="true">QPushButton {
+                                                                                    background-color: #e67e22;
+                                                                                    color: white;
+                                                                                    border: none;
+                                                                                    padding: 8px 15px;
+                                                                                    border-radius: 5px;
+                                                                                }
+                                                                                QPushButton:hover {
+                                                                                    background-color: #d35400;
+                                                                                }
+                                                                                QPushButton:disabled {
+                                                                                    background-color: #bdc3c7;
+                                                                                }</string>
+                                                                            </property>
+                                                                            <property name="text">
+                                                                                <string>Cancel Scan</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
                                                                 </layout>
                                                             </item>
                                                             <item>
-                                                                <widget class="QTableWidget"
-                                                                    name="softwareTable">
+                                                                <widget class="QTableWidget" name="softwareTable">
                                                                     <property name="styleSheet">
-                                                                        <string notr="true">QTableWidget
-                                                                            {
-                                                                            border: 1px solid
-                                                                            #ecf0f1;
+                                                                        <string notr="true">QTableWidget {
+                                                                            border: 1px solid #ecf0f1;
                                                                             border-radius: 5px;
-                                                                            background-color:
-                                                                            #f8f9fa;
+                                                                            background-color: #f8f9fa;
                                                                             color: #2c3e50;
                                                                             gridline-color: #ecf0f1;
-                                                                            }
-
-                                                                            QTableWidget::item {
+                                                                        }
+                                                    
+                                                                        QTableWidget::item {
                                                                             padding: 6px;
-                                                                            border-bottom: 1px solid
-                                                                            #ecf0f1;
-                                                                            }
-                                                                            QTableWidget::item:selected
-                                                                            {
-                                                                            background-color:
-                                                                            #1abc9c;
+                                                                            border-bottom: 1px solid #ecf0f1;
+                                                                        }
+                                                                        QTableWidget::item:selected {
+                                                                            background-color: #1abc9c;
                                                                             color: white;
-                                                                            }
-
-                                                                            QHeaderView::section {
-                                                                            background-color:
-                                                                            #34495e;
+                                                                        }
+                                                    
+                                                                        QHeaderView::section {
+                                                                            background-color: #34495e;
                                                                             color: white;
                                                                             padding: 8px;
                                                                             border: none;
-                                                                            }</string>
+                                                                        }</string>
                                                                     </property>
                                                                     <property name="editTriggers">
-                                                                        <set>
-                                                                            QAbstractItemView::NoEditTriggers</set>
+                                                                        <set>QAbstractItemView::NoEditTriggers</set>
                                                                     </property>
                                                                     <property name="selectionMode">
-                                                                        <enum>
-                                                                            QAbstractItemView::SingleSelection</enum>
+                                                                        <enum>QAbstractItemView::SingleSelection</enum>
                                                                     </property>
-                                                                    <property
-                                                                        name="selectionBehavior">
-                                                                        <enum>
-                                                                            QAbstractItemView::SelectRows</enum>
+                                                                    <property name="selectionBehavior">
+                                                                        <enum>QAbstractItemView::SelectRows</enum>
                                                                     </property>
                                                                     <property name="sortingEnabled">
                                                                         <bool>true</bool>
@@ -1456,103 +1138,77 @@
                                                                 </widget>
                                                             </item>
                                                             <item>
-                                                                <layout class="QHBoxLayout"
-                                                                    name="horizontalLayout_6">
+                                                                <layout class="QHBoxLayout" name="horizontalLayout_6">
                                                                     <item>
-                                                                        <widget class="QPushButton"
-                                                                            name="uninstallSoftwareButton">
+                                                                        <widget class="QPushButton" name="uninstallSoftwareButton">
                                                                             <property name="enabled">
                                                                                 <bool>false</bool>
                                                                             </property>
                                                                             <property name="font">
                                                                                 <font>
-                                                                                    <pointsize>10</pointsize>
-                                                                                    <weight>75</weight>
-                                                                                    <bold>true</bold>
+                                                                                    <pointsize>9</pointsize> <!-- Match font size -->
                                                                                 </font>
                                                                             </property>
-                                                                            <property
-                                                                                name="styleSheet">
-                                                                                <string notr="true">QPushButton
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #e74c3c;
+                                                                            <property name="styleSheet">
+                                                                                <string notr="true">QPushButton {
+                                                                                    background-color: #e74c3c;
                                                                                     color: white;
                                                                                     border: none;
-                                                                                    padding: 10px
-                                                                                    20px;
-                                                                                    border-radius:
-                                                                                    5px;
-                                                                                    min-width:
-                                                                                    120px;
-                                                                                    }
-                                                                                    QPushButton:hover
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #c0392b;
-                                                                                    }
-                                                                                    QPushButton:disabled
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #bdc3c7;
-                                                                                    }</string>
+                                                                                    padding: 8px 15px;  <!-- Match padding -->
+                                                                                    border-radius: 5px;
+                                                                                    min-width: 100px;  <!-- Optional: same min-width for both -->
+                                                                                }
+                                                                                QPushButton:hover {
+                                                                                    background-color: #c0392b;
+                                                                                }
+                                                                                QPushButton:disabled {
+                                                                                    background-color: #bdc3c7;
+                                                                                }</string>
                                                                             </property>
                                                                             <property name="text">
                                                                                 <string>Uninstall Selected</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
+                                                                    
                                                                     <item>
-                                                                        <widget class="QPushButton"
-                                                                            name="forceUninstallButton">
+                                                                        <widget class="QPushButton" name="forceUninstallButton">
                                                                             <property name="enabled">
                                                                                 <bool>false</bool>
                                                                             </property>
                                                                             <property name="font">
                                                                                 <font>
-                                                                                    <pointsize>9</pointsize>
+                                                                                    <pointsize>9</pointsize> <!-- Already matches -->
                                                                                 </font>
                                                                             </property>
-                                                                            <property
-                                                                                name="styleSheet">
-                                                                                <string notr="true">QPushButton
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #e67e22;
+                                                                            <property name="styleSheet">
+                                                                                <string notr="true">QPushButton {
+                                                                                    background-color: #e67e22;
                                                                                     color: white;
                                                                                     border: none;
-                                                                                    padding: 8px
-                                                                                    15px;
-                                                                                    border-radius:
-                                                                                    5px;
-                                                                                    }
-                                                                                    QPushButton:hover
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #d35400;
-                                                                                    }
-                                                                                    QPushButton:disabled
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #bdc3c7;
-                                                                                    }</string>
+                                                                                    padding: 8px 15px;  <!-- Matches other button -->
+                                                                                    border-radius: 5px;
+                                                                                    min-width: 100px;  <!-- Optional: same min-width -->
+                                                                                }
+                                                                                QPushButton:hover {
+                                                                                    background-color: #d35400;
+                                                                                }
+                                                                                QPushButton:disabled {
+                                                                                    background-color: #bdc3c7;
+                                                                                }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Force
-                                                                                    Uninstall</string>
+                                                                                <string>Force Uninstall</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
+                                                                    
                                                                     <item>
-                                                                        <spacer
-                                                                            name="horizontalSpacer_2">
-                                                                            <property
-                                                                                name="orientation">
+                                                                        <spacer name="horizontalSpacer_2">
+                                                                            <property name="orientation">
                                                                                 <enum>Qt::Horizontal</enum>
                                                                             </property>
-                                                                            <property
-                                                                                name="sizeHint"
-                                                                                stdset="0">
+                                                                            <property name="sizeHint" stdset="0">
                                                                                 <size>
                                                                                     <width>40</width>
                                                                                     <height>20</height>
@@ -1561,23 +1217,29 @@
                                                                         </spacer>
                                                                     </item>
                                                                     <item>
-                                                                        <widget class="QLabel"
-                                                                            name="selectedSoftwareInfo">
+                                                                        <widget class="QLabel" name="selectedSoftwareInfo">
                                                                             <property name="font">
                                                                                 <font>
                                                                                     <pointsize>9</pointsize>
                                                                                 </font>
                                                                             </property>
-                                                                            <property
-                                                                                name="styleSheet">
-                                                                                <string notr="true">QLabel
-                                                                                    {
+                                                                            <property name="styleSheet">
+                                                                                <string notr="true">QLabel {
                                                                                     color: #7f8c8d;
                                                                                     padding: 5px;
-                                                                                    }</string>
+                                                                                    background-color: #f8f9fa;
+                                                                                    border: 1px solid #ecf0f1;
+                                                                                    border-radius: 5px;
+                                                                                }</string>
                                                                             </property>
                                                                             <property name="text">
                                                                                 <string>No software selected</string>
+                                                                            </property>
+                                                                            <property name="alignment">
+                                                                                <set>Qt::AlignLeft</set>
+                                                                            </property>
+                                                                            <property name="wordWrap">
+                                                                                <bool>true</bool>
                                                                             </property>
                                                                         </widget>
                                                                     </item>

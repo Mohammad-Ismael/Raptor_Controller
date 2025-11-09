@@ -33,7 +33,6 @@ MainWindow::MainWindow(QWidget *parent)
     m_softwareManager = new SoftwareManager(this, this);
     m_wifiManager = new WiFiManager(this, this);
     m_filesChecker = new FilesChecker(this, this);
-    
 
     // Add path suggestions for file checker
     QStringList commonPaths = m_filesChecker->getCommonPaths();
@@ -62,9 +61,46 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->cancelLargeFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelLargeFilesButton_clicked);
     connect(ui->cancelDuplicateFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelDuplicateFilesButton_clicked);
 
+    // In MainWindow constructor, add:
+    connect(ui->appsButton, &QPushButton::clicked, this, [this]()
+            {
+    if (ui->contentStackedWidget->currentWidget() == ui->appsPage) {
+        // Auto-refresh software list when software tab is opened
+        on_scanSoftwareButton_clicked();
+    } });
 
+    connect(m_softwareManager, &SoftwareManager::scanProgressUpdated, this, [this](int progress, const QString &status)
+            {
+    ui->selectedSoftwareInfo->setText(status);
+    // Enable cancel button during scan
+    ui->cancelSoftwareScanButton->setEnabled(true); });
 
+    connect(m_softwareManager, &SoftwareManager::scanFinished, this, [this](bool success, const QString &message)
+            {
+    ui->selectedSoftwareInfo->setText(message);
+    ui->scanSoftwareButton->setEnabled(true);
+    ui->searchSoftwareInput->setEnabled(true);
+    ui->cancelSoftwareScanButton->setEnabled(false);
+    
+    if (success) {
+        // Software table will be populated automatically
+    } });
 
+    // Add cancel button slot
+    connect(ui->cancelSoftwareScanButton, &QPushButton::clicked, this, [this]()
+            {
+    m_softwareManager->cancelScan();
+    ui->cancelSoftwareScanButton->setEnabled(false); });
+
+    // Auto-refresh when software tab is opened
+    connect(ui->appsButton, &QPushButton::clicked, this, [this]()
+            {
+    if (ui->contentStackedWidget->currentWidget() == ui->appsPage) {
+        // Only refresh if we don't have data yet
+        if (ui->softwareTable->rowCount() == 0) {
+            on_scanSoftwareButton_clicked();
+        }
+    } });
 }
 
 // Add this new slot to MainWindow class (add declaration to mainwindow.h too)
@@ -305,16 +341,6 @@ void MainWindow::on_cleanSystemButton_clicked()
     m_systemCleaner->performSystemClean();
 }
 
-void MainWindow::on_scanBrowsersButton_clicked()
-{
-    m_systemCleaner->performBrowserScan();
-}
-
-void MainWindow::on_cleanBrowsersButton_clicked()
-{
-    m_systemCleaner->performBrowserClean();
-}
-
 void MainWindow::on_selectAllSystemButton_clicked()
 {
     QListWidget *systemList = ui->systemCleanerList;
@@ -371,7 +397,7 @@ void MainWindow::on_selectAllSystemButton_clicked()
 }
 
 // Software Uninstaller slots - Delegated to SoftwareManager
-void MainWindow::on_refreshSoftwareButton_clicked()
+void MainWindow::on_scanSoftwareButton_clicked()
 {
     m_softwareManager->refreshSoftware();
 }
@@ -1118,3 +1144,12 @@ void MainWindow::onLargeFilesTableItemClicked(QTableWidgetItem *item)
     }
 }
 
+
+void MainWindow::on_cancelSoftwareScanButton_clicked()
+{
+    if (m_softwareManager) {
+        m_softwareManager->cancelScan();
+        ui->cancelSoftwareScanButton->setEnabled(false);
+        ui->selectedSoftwareInfo->setText("Scan cancelled by user.");
+    }
+}

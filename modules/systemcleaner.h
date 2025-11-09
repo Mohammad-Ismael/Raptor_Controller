@@ -21,8 +21,6 @@ public:
     void performQuickClean();
     void performSystemScan();
     void performSystemClean();
-    void performBrowserScan();
-    void performBrowserClean();
 
 private slots:
     void onQuickScanFinished();

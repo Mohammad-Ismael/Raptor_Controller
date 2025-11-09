@@ -375,16 +375,6 @@ void SystemCleaner::performSystemClean()
     performSystemScan();
 }
 
-void SystemCleaner::performBrowserScan()
-{
-    m_mainWindow->ui->cleanBrowsersButton->setEnabled(true);
-}
-
-void SystemCleaner::performBrowserClean()
-{
-    m_mainWindow->ui->cleanBrowsersButton->setEnabled(false);
-}
-
 void SystemCleaner::onQuickScanFinished()
 {
     m_isScanning = false;
