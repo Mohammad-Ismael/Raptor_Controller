@@ -101,6 +101,23 @@ MainWindow::MainWindow(QWidget *parent)
             on_scanSoftwareButton_clicked();
         }
     } });
+
+    m_systemInfoManager = new SystemInfoManager(this, this);
+
+    // Connect system info signals
+    connect(m_systemInfoManager, &SystemInfoManager::systemInfoUpdated,
+            this, &MainWindow::onSystemInfoUpdated);
+    connect(m_systemInfoManager, &SystemInfoManager::performanceUpdated,
+            this, &MainWindow::onPerformanceUpdated);
+    connect(m_systemInfoManager, &SystemInfoManager::updateFinished,
+            this, &MainWindow::onSystemInfoUpdateFinished);
+
+    // Auto-refresh when general tab is opened
+    connect(ui->generalButton, &QPushButton::clicked, this, [this]()
+            {
+    if (ui->contentStackedWidget->currentWidget() == ui->generalPage) {
+        on_refreshSystemInfoButton_clicked();
+    } });
 }
 
 // Add this new slot to MainWindow class (add declaration to mainwindow.h too)
@@ -250,14 +267,18 @@ void MainWindow::showCleanerPage()
 // Update the navigation slots to cancel operations when switching tabs
 void MainWindow::on_generalButton_clicked()
 {
-    cancelAllOperations();
+   cancelAllOperations();
     setActiveButton(ui->generalButton);
     updateContent("General Settings");
     ui->contentStackedWidget->setCurrentWidget(ui->generalPage);
 
-    // Populate startup programs table
-    if (ui->startupTable->rowCount() == 0)
-    {
+    // Auto-refresh system info when tab is opened
+    if (ui->systemInfoTab->isVisible()) {
+        on_refreshSystemInfoButton_clicked();
+    }
+
+    // Keep your existing startup programs population
+    if (ui->startupTable->rowCount() == 0) {
         QStringList startupPrograms = {
             "Microsoft OneDrive", "Spotify", "Adobe Creative Cloud",
             "Discord", "Steam Client", "NVIDIA Control Panel",
@@ -266,8 +287,7 @@ void MainWindow::on_generalButton_clicked()
         QStringList impacts = {"Low", "Medium", "High", "Low", "Medium", "Low", "Low", "Low", "Low"};
         QStringList types = {"Registry", "Startup Folder", "Service", "Registry", "Registry", "Service", "Service", "Service", "Scheduled Task"};
 
-        for (int i = 0; i < startupPrograms.size(); ++i)
-        {
+        for (int i = 0; i < startupPrograms.size(); ++i) {
             int row = ui->startupTable->rowCount();
             ui->startupTable->insertRow(row);
 
@@ -453,24 +473,6 @@ void MainWindow::on_searchAppsInput_textChanged(const QString &searchText)
     m_appManager->searchApps(searchText);
 }
 
-// General tab slots
-void MainWindow::on_refreshSystemInfoButton_clicked()
-{
-    // Simulate refreshing system info
-    ui->cpuUsageProgress->setValue(rand() % 100);
-    ui->ramUsageProgress->setValue(rand() % 100);
-    ui->diskUsageProgress->setValue(rand() % 100);
-
-    ui->cpuUsageValue->setText(QString("%1%").arg(ui->cpuUsageProgress->value()));
-    ui->ramUsageValue->setText(QString("%1%").arg(ui->ramUsageProgress->value()));
-    ui->diskUsageValue->setText(QString("%1%").arg(ui->diskUsageProgress->value()));
-}
-
-void MainWindow::on_generateReportButton_clicked()
-{
-    // Placeholder for report generation
-    ui->systemInfoLabel->setText("System report generated successfully! Check your Documents folder.");
-}
 
 void MainWindow::on_disableStartupButton_clicked()
 {
@@ -1144,12 +1146,67 @@ void MainWindow::onLargeFilesTableItemClicked(QTableWidgetItem *item)
     }
 }
 
-
 void MainWindow::on_cancelSoftwareScanButton_clicked()
 {
-    if (m_softwareManager) {
+    if (m_softwareManager)
+    {
         m_softwareManager->cancelScan();
         ui->cancelSoftwareScanButton->setEnabled(false);
         ui->selectedSoftwareInfo->setText("Scan cancelled by user.");
     }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+void MainWindow::onSystemInfoUpdated(const QString &osInfo, const QString &cpuInfo, 
+                                    const QString &ramInfo, const QString &storageInfo, 
+                                    const QString &gpuInfo)
+{
+    ui->osValueLabel->setText(osInfo);
+    ui->cpuValueLabel->setText(cpuInfo);
+    ui->ramValueLabel->setText(ramInfo);
+    ui->storageValueLabel->setText(QString("%1 (%2)").arg(storageInfo));
+    ui->gpuValueLabel->setText(gpuInfo);
+}
+
+void MainWindow::onPerformanceUpdated(int cpuUsage, int ramUsage, int diskUsage)
+{
+    ui->cpuUsageProgress->setValue(cpuUsage);
+    ui->ramUsageProgress->setValue(ramUsage);
+    ui->diskUsageProgress->setValue(diskUsage);
+    
+    ui->cpuUsageValue->setText(QString("%1%").arg(cpuUsage));
+    ui->ramUsageValue->setText(QString("%1%").arg(ramUsage));
+    ui->diskUsageValue->setText(QString("%1%").arg(diskUsage));
+}
+
+void MainWindow::onSystemInfoUpdateFinished(bool success, const QString &message)
+{
+    if (success) {
+        // Start real-time monitoring after initial scan
+        m_systemInfoManager->startRealTimeMonitoring();
+    }
+    // You can show the message in status if needed
+}
+
+// Update the existing refresh method
+void MainWindow::on_refreshSystemInfoButton_clicked()
+{
+    m_systemInfoManager->refreshSystemInfo();
+}
+
+// Update the existing generate report method  
+void MainWindow::on_generateReportButton_clicked()
+{
+    m_systemInfoManager->generateSystemReport();
 }

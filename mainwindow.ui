@@ -690,8 +690,7 @@
                                                                             }</string>
                                                                     </property>
                                                                     <property name="text">
-                                                                        <string>Total space to be
-                                                                            freed: 0 MB</string>
+                                                                        <string>Total space to be freed: 0 MB</string>
                                                                     </property>
                                                                     <property name="alignment">
                                                                         <set>Qt::AlignCenter</set>
@@ -755,75 +754,63 @@
                                                                     </property>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>❌ Temporary
-                                                                                Files (0 MB)</string>
+                                                                            <string>❌ Temporary Files (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>❌ Windows Update
-                                                                                Cache (0 MB)</string>
+                                                                            <string>❌ Windows Update Cache (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>❌ System Log
-                                                                                Files (0 MB)</string>
+                                                                            <string>❌ System Log Files (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>❌ Memory Dump
-                                                                                Files (0 MB)</string>
+                                                                            <string>❌ Memory Dump Files (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>❌ Thumbnail
-                                                                                Cache (0 MB)</string>
+                                                                            <string>❌ Thumbnail Cache (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>❌ Error Reports
-                                                                                (0 MB)</string>
+                                                                            <string>❌ Error Reports (0 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>❌ Recycle Bin (0
+                                                                            <string>❌ Recycle Bin (0 MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Prefetch Files (0 MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Font Cache (0 MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Delivery Optimization (0 MB)</string>
+                                                                        </property>
+                                                                    </item>
+                                                                    <item>
+                                                                        <property name="text">
+                                                                            <string>❌ Error Reporting Archive (0
                                                                                 MB)</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>❌ Prefetch Files
-                                                                                (0 MB)</string>
-                                                                        </property>
-                                                                    </item>
-                                                                    <item>
-                                                                        <property name="text">
-                                                                            <string>❌ Font Cache (0
-                                                                                MB)</string>
-                                                                        </property>
-                                                                    </item>
-                                                                    <item>
-                                                                        <property name="text">
-                                                                            <string>❌ Delivery
-                                                                                Optimization (0 MB)</string>
-                                                                        </property>
-                                                                    </item>
-                                                                    <item>
-                                                                        <property name="text">
-                                                                            <string>❌ Error
-                                                                                Reporting Archive (0
-                                                                                MB)</string>
-                                                                        </property>
-                                                                    </item>
-                                                                    <item>
-                                                                        <property name="text">
-                                                                            <string>❌ Windows
-                                                                                Defender Scans (0
+                                                                            <string>❌ Windows Defender Scans (0
                                                                                 MB)</string>
                                                                         </property>
                                                                     </item>
@@ -864,8 +851,7 @@
                                                                                     }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Scan
-                                                                                    Selected</string>
+                                                                                <string>Scan Selected</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
@@ -909,8 +895,7 @@
                                                                                     }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Clean
-                                                                                    Selected</string>
+                                                                                <string>Clean Selected</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
@@ -2428,8 +2413,7 @@
                                                                 <widget class="QGroupBox"
                                                                     name="systemSpecsGroup">
                                                                     <property name="title">
-                                                                        <string>System
-                                                                            Specifications</string>
+                                                                        <string>System Specifications</string>
                                                                     </property>
                                                                     <property name="styleSheet">
                                                                         <string notr="true">QGroupBox
@@ -2470,8 +2454,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Operating
-                                                                                        System:</string>
+                                                                                    <string>Operating System:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2489,8 +2472,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Windows
-                                                                                        11 Pro</string>
+                                                                                    <string>Windows 11 Pro</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2510,8 +2492,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>
-                                                                                        Processor:</string>
+                                                                                    <string>Processor:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2529,9 +2510,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Intel
-                                                                                        Core
-                                                                                        i7-12700K</string>
+                                                                                    <string>Intel Core i7-12700K</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2551,8 +2530,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Memory
-                                                                                        (RAM):</string>
+                                                                                    <string>Memory (RAM):</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2590,7 +2568,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Storage:</string>
+                                                                                    <string>Boot Hard Disk Storage:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2608,9 +2586,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>1 TB SSD
-                                                                                        (Free: 650
-                                                                                        GB)</string>
+                                                                                    <string>1 TB SSD (Free: 650 GB)</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2630,8 +2606,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>
-                                                                                        Graphics:</string>
+                                                                                    <string>Graphics:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2649,8 +2624,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>NVIDIA
-                                                                                        RTX 4070</string>
+                                                                                    <string>NVIDIA RTX 4070</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2686,9 +2660,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>
-                                                                                                CPU
-                                                                                                Usage:</string>
+                                                                                            <string>CPU Usage:</string>
                                                                                         </property>
                                                                                     </widget>
                                                                                 </item>
@@ -2742,8 +2714,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>
-                                                                                                24%</string>
+                                                                                            <string>24%</string>
                                                                                         </property>
                                                                                         <property
                                                                                             name="alignment">
@@ -2775,9 +2746,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>
-                                                                                                RAM
-                                                                                                Usage:</string>
+                                                                                            <string>RAM Usage:</string>
                                                                                         </property>
                                                                                     </widget>
                                                                                 </item>
@@ -2831,8 +2800,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>
-                                                                                                65%</string>
+                                                                                            <string>65%</string>
                                                                                         </property>
                                                                                         <property
                                                                                             name="alignment">
@@ -2864,9 +2832,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>
-                                                                                                Disk
-                                                                                                Usage:</string>
+                                                                                            <string>Disk Usage:</string>
                                                                                         </property>
                                                                                     </widget>
                                                                                 </item>
@@ -2920,8 +2886,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>
-                                                                                                35%</string>
+                                                                                            <string>35%</string>
                                                                                         </property>
                                                                                         <property
                                                                                             name="alignment">
@@ -3354,8 +3319,7 @@
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>System
-                                                                                            Default</string>
+                                                                                        <string>System Default</string>
                                                                                     </property>
                                                                                 </item>
                                                                             </widget>
@@ -5512,10 +5476,7 @@
                                                                             }</string>
                                                                     </property>
                                                                     <property name="text">
-                                                                        <string>Monitor your network
-                                                                            connection status, view
-                                                                            IP addresses, and check
-                                                                            internet connectivity.</string>
+                                                                        <string>Monitor your network connection status, view IP addresses, and check internet connectivity.</string>
                                                                     </property>
                                                                     <property name="alignment">
                                                                         <set>Qt::AlignCenter</set>
@@ -5917,8 +5878,7 @@
                                                                                     }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Refresh
-                                                                                    Status</string>
+                                                                                <string>Refresh Status</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
@@ -5950,8 +5910,7 @@
                                                                                     }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Test
-                                                                                    Connection</string>
+                                                                                <string>Test Connection</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
@@ -5999,11 +5958,7 @@
                                                                             }</string>
                                                                     </property>
                                                                     <property name="text">
-                                                                        <string>Test network
-                                                                            connectivity using ping
-                                                                            and traceroute tools to
-                                                                            diagnose connection
-                                                                            issues.</string>
+                                                                        <string>Test network connectivity using ping and traceroute tools to diagnose connection issues.</string>
                                                                     </property>
                                                                     <property name="alignment">
                                                                         <set>Qt::AlignCenter</set>
@@ -6470,10 +6425,7 @@
                                                                             }</string>
                                                                     </property>
                                                                     <property name="text">
-                                                                        <string>Scan for open ports
-                                                                            on a target host to
-                                                                            check network services
-                                                                            and security.</string>
+                                                                        <string>Scan for open ports on a target host to check network services and security.</string>
                                                                     </property>
                                                                     <property name="alignment">
                                                                         <set>Qt::AlignCenter</set>
@@ -6684,8 +6636,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Scan
-                                                                                        Type:</string>
+                                                                                    <string>Scan Type:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -6721,15 +6672,13 @@
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>SYN
-                                                                                            Scan</string>
+                                                                                        <string>SYN Scan</string>
                                                                                     </property>
                                                                                 </item>
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>UDP
-                                                                                            Scan</string>
+                                                                                        <string>UDP Scan</string>
                                                                                     </property>
                                                                                 </item>
                                                                             </widget>

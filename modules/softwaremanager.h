@@ -7,6 +7,7 @@
 #include <QRegularExpression>
 #include <QFutureWatcher>
 #include <QAtomicInteger>
+#include <QDateTime>
 
 class MainWindow;
 
@@ -59,6 +60,10 @@ private:
 
     void setupConnections();
     void onScanFinished();
+
+    QList<InstalledSoftware> m_cachedSoftware;
+    QDateTime m_lastScanTime;
+    bool m_isCacheValid;
 
     // Fast scanning methods
     QList<InstalledSoftware> getInstalledSoftwareFromRegistryFast();

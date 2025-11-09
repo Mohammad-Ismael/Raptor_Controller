@@ -19,6 +19,7 @@
 #include "modules/softwaremanager.h"
 #include "modules/wifimanager.h"
 #include "modules/fileschecker.h"
+#include "modules/systeminfomanager.h" // Add this include
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -38,6 +39,8 @@ public:
 
     // Make UI accessible to modules
     Ui::MainWindow *ui;
+
+        SystemInfoManager *m_systemInfoManager;
 
 private slots:
 
@@ -139,6 +142,12 @@ private slots:
 
     void on_cancelSoftwareScanButton_clicked(); // Add this
 
+    void onSystemInfoUpdated(const QString &osInfo, const QString &cpuInfo,
+                             const QString &ramInfo, const QString &storageInfo,
+                             const QString &gpuInfo);
+    void onPerformanceUpdated(int cpuUsage, int ramUsage, int diskUsage);
+    void onSystemInfoUpdateFinished(bool success, const QString &message);
+
 private:
     // Modular managers
     SystemCleaner *m_systemCleaner;
@@ -164,6 +173,14 @@ private:
     void cancelAllOperations();
     void debugTableState();
     void updateDeleteButtonState();
+
+
+
+
+
+
+
+
 };
 
 #endif // MAINWINDOW_H
