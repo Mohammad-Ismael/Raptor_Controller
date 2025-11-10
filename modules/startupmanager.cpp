@@ -286,28 +286,40 @@ QList<StartupProgram> StartupManager::getRealStartupPrograms()
 {
     QList<StartupProgram> programs;
 
-    // Scan Registry locations
+    qDebug() << "Scanning startup locations that Task Manager monitors...";
+    
+    // Debug first to see actual state
+    debugActualRegistryState();
+    
+    // Then scan normally
     scanRegistryStartup(programs, "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "Registry", "Current User");
     scanRegistryStartup(programs, "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", "Registry", "Local Machine");
-    scanRegistryStartup(programs, "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run", "Registry", "WOW6432Node");
-
-    // Scan RunOnce keys
-    scanRegistryStartup(programs, "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce", "Registry", "RunOnce");
-    scanRegistryStartup(programs, "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce", "Registry", "RunOnce");
-
-    // Scan Startup folders
     scanStartupFolders(programs);
-
-    // Scan Services
-    scanServices(programs);
-
-    // Scan Scheduled Tasks
-    scanScheduledTasks(programs);
-
+    
+    qDebug() << "Total programs found:" << programs.size();
+    
     removeDuplicates(programs);
     sortProgramsByName(programs);
 
     return programs;
+}
+
+bool StartupManager::shouldSkipProgram(const QString &name, const QString &command)
+{
+    QString lowerName = name.toLower();
+    QString lowerCommand = command.toLower();
+    
+    // Only skip truly system-critical entries
+    if (lowerName.contains("securityhealth") ||
+        lowerName.contains("windowsdefender") ||
+        lowerCommand.contains("system32\\securityhealth")) {
+        return true;
+    }
+    
+    // Don't skip Microsoft Store apps, Riot, Steam, etc.
+    // Let Task Manager decide what to show
+    
+    return false;
 }
 
 void StartupManager::scanRegistryStartup(QList<StartupProgram> &programs, const QString &registryPath, const QString &startupType, const QString &location)
@@ -315,93 +327,117 @@ void StartupManager::scanRegistryStartup(QList<StartupProgram> &programs, const 
     QSettings registry(registryPath, QSettings::NativeFormat);
     QStringList keys = registry.childKeys();
 
-    for (const QString &key : keys)
-    {
+    for (const QString &key : keys) {
         QString value = registry.value(key).toString();
-
-        if (value.isEmpty())
-            continue;
-
-        // Check for disabled entries in the registry
-        bool isEnabled = true;
-
-        // Check common registry locations for disabled entries
-        QSettings disabledRegistry(registryPath + "Disabled", QSettings::NativeFormat);
-        if (disabledRegistry.contains(key))
-        {
-            isEnabled = false;
-        }
-
-        // Also check if the value itself indicates it's disabled
-        if (value.contains("--disabled") || value.contains("-disable") ||
-            key.contains("(disabled)", Qt::CaseInsensitive))
-        {
-            isEnabled = false;
-        }
-
+        if (value.isEmpty()) continue;
+        
+        // For now, let's assume ALL programs in the main registry are ENABLED
+        // and ALL programs in Disabled key are DISABLED
+        // This is the simplest approach that should match Task Manager
+        
         StartupProgram program;
         program.name = key;
-        program.status = isEnabled ? "Enabled" : "Disabled";
+        program.status = "Enabled";
         program.startupType = startupType;
         program.command = value;
         program.location = registryPath;
-        program.isEnabled = isEnabled;
+        program.isEnabled = true;
         program.impact = calculateProgramImpact(key, value);
-
         programs.append(program);
+        
+        qDebug() << "Found in MAIN registry (ENABLED):" << key;
+    }
+    
+    // Check Disabled key
+    QSettings disabledReg(registryPath + "Disabled", QSettings::NativeFormat);
+    QStringList disabledKeys = disabledReg.childKeys();
+    
+    for (const QString &key : disabledKeys) {
+        QString originalValue = disabledReg.value(key).toString();
+        
+        StartupProgram program;
+        program.name = key;
+        program.status = "Disabled";
+        program.startupType = startupType;
+        program.command = originalValue;
+        program.location = registryPath + " (Disabled)";
+        program.isEnabled = false;
+        program.impact = calculateProgramImpact(key, originalValue);
+        programs.append(program);
+        qDebug() << "Found in DISABLED registry:" << key;
     }
 }
+
+bool StartupManager::isProgramEnabledInTaskManager(const QString &programName, const QString &registryPath, const QString &value)
+{
+    // Method 1: Check if value indicates it's disabled
+    if (value.startsWith("DISABLED_") || 
+        value.contains("--disabled") || 
+        value.contains("/disabled")) {
+        return false;
+    }
+    
+    // Method 2: Check if it's in the official Windows Disabled key
+    QSettings disabledReg(registryPath + "Disabled", QSettings::NativeFormat);
+    if (disabledReg.contains(programName)) {
+        return false;
+    }
+    
+    // Method 3: Check common patterns that indicate disabled state
+    if (programName.contains("(disabled)", Qt::CaseInsensitive)) {
+        return false;
+    }
+    
+    // If none of the above, assume it's enabled
+    return true;
+}
+
 
 void StartupManager::scanStartupFolders(QList<StartupProgram> &programs)
 {
     // Get actual startup folder paths
-    wchar_t *startupPath = nullptr;
-
+    wchar_t* startupPath = nullptr;
+    
     // Current User startup folder
-    if (SHGetKnownFolderPath(FOLDERID_Startup, 0, nullptr, &startupPath) == S_OK)
-    {
+    if (SHGetKnownFolderPath(FOLDERID_Startup, 0, nullptr, &startupPath) == S_OK) {
         QString folderPath = QString::fromWCharArray(startupPath);
         CoTaskMemFree(startupPath);
-
+        
         QDir startupFolder(folderPath);
-        if (startupFolder.exists())
-        {
+        if (startupFolder.exists()) {
             scanStartupFolder(programs, startupFolder, "Startup Folder", "Current User");
+        } else {
+            qDebug() << "Startup folder doesn't exist:" << folderPath;
         }
     }
-
+    
     // All Users startup folder
-    if (SHGetKnownFolderPath(FOLDERID_CommonStartup, 0, nullptr, &startupPath) == S_OK)
-    {
+    if (SHGetKnownFolderPath(FOLDERID_CommonStartup, 0, nullptr, &startupPath) == S_OK) {
         QString folderPath = QString::fromWCharArray(startupPath);
         CoTaskMemFree(startupPath);
-
+        
         QDir startupFolder(folderPath);
-        if (startupFolder.exists())
-        {
+        if (startupFolder.exists()) {
             scanStartupFolder(programs, startupFolder, "Startup Folder", "All Users");
+        } else {
+            qDebug() << "Common startup folder doesn't exist:" << folderPath;
         }
     }
 }
 
 void StartupManager::scanStartupFolder(QList<StartupProgram> &programs, QDir &startupFolder, const QString &startupType, const QString &location)
 {
-    QFileInfoList entries = startupFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::System);
-
+    QString actualPath = startupFolder.absolutePath();
+    qDebug() << "Scanning startup folder:" << actualPath;
+    
     // Check for disabled folder
     QDir disabledFolder(startupFolder.absolutePath() + "/Disabled");
-    QFileInfoList disabledEntries;
-    if (disabledFolder.exists())
-    {
-        disabledEntries = disabledFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::System);
-    }
-
-    // Add enabled entries
-    for (const QFileInfo &entry : entries)
-    {
+    
+    // Scan ENABLED items (in main folder)
+    QFileInfoList entries = startupFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::System);
+    for (const QFileInfo &entry : entries) {
         QString suffix = entry.suffix().toLower();
-        if (suffix == "lnk" || suffix == "exe" || suffix == "bat" || suffix == "cmd")
-        {
+        if (suffix == "lnk" || suffix == "exe" || suffix == "bat" || suffix == "cmd") {
             StartupProgram program;
             program.name = entry.baseName();
             program.status = "Enabled";
@@ -410,27 +446,30 @@ void StartupManager::scanStartupFolder(QList<StartupProgram> &programs, QDir &st
             program.location = location;
             program.isEnabled = true;
             program.impact = calculateProgramImpact(program.name, program.command);
-
+            
             programs.append(program);
+            qDebug() << "Found ENABLED startup folder:" << program.name;
         }
     }
-
-    // Add disabled entries
-    for (const QFileInfo &entry : disabledEntries)
-    {
-        QString suffix = entry.suffix().toLower();
-        if (suffix == "lnk" || suffix == "exe" || suffix == "bat" || suffix == "cmd")
-        {
-            StartupProgram program;
-            program.name = entry.baseName();
-            program.status = "Disabled";
-            program.startupType = startupType;
-            program.command = entry.absoluteFilePath();
-            program.location = location + " (Disabled)";
-            program.isEnabled = false;
-            program.impact = calculateProgramImpact(program.name, program.command);
-
-            programs.append(program);
+    
+    // Scan DISABLED items (in disabled subfolder)
+    if (disabledFolder.exists()) {
+        QFileInfoList disabledEntries = disabledFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::System);
+        for (const QFileInfo &entry : disabledEntries) {
+            QString suffix = entry.suffix().toLower();
+            if (suffix == "lnk" || suffix == "exe" || suffix == "bat" || suffix == "cmd") {
+                StartupProgram program;
+                program.name = entry.baseName();
+                program.status = "Disabled";
+                program.startupType = startupType;
+                program.command = entry.absoluteFilePath();
+                program.location = location + " (Disabled)";
+                program.isEnabled = false;
+                program.impact = calculateProgramImpact(program.name, program.command);
+                
+                programs.append(program);
+                qDebug() << "Found DISABLED startup folder:" << program.name;
+            }
         }
     }
 }
@@ -691,156 +730,230 @@ void StartupManager::sortProgramsByName(QList<StartupProgram> &programs)
 
 bool StartupManager::changeStartupProgramState(const QString &programName, const QString &location, const QString &startupType, bool enable)
 {
-    qDebug() << "Attempting to" << (enable ? "enable" : "disable") << programName
+    qDebug() << "Attempting to" << (enable ? "enable" : "disable") << programName 
              << "Type:" << startupType << "Location:" << location;
-
+    
     bool success = false;
-
-    if (startupType == "Registry")
-    {
+    
+    if (startupType == "Registry") {
         success = changeRegistryStartupState(programName, location, enable);
-    }
-    else if (startupType == "Startup Folder")
-    {
+    } else if (startupType == "Startup Folder") {
         success = changeStartupFolderState(programName, location, enable);
+    } else {
+        QMessageBox::warning(m_mainWindow, "Error", 
+            QString("Cannot %1 '%2' - unsupported startup type: %3")
+                .arg(enable ? "enable" : "disable")
+                .arg(programName)
+                .arg(startupType));
+        return false;
     }
-    else if (startupType == "Service")
-    {
-        success = changeServiceState(programName, enable);
-    }
-    else if (startupType == "Scheduled Task")
-    {
-        success = changeScheduledTaskState(programName, enable);
-    }
-
-    if (success)
-    {
-        // Refresh the list to show updated states
+    
+    if (success) {
+        // Refresh to show updated state
         refreshStartupPrograms();
+        QMessageBox::information(m_mainWindow, "Success", 
+            QString("'%1' has been %2. Changes should appear in Task Manager after restarting it.")
+                .arg(programName)
+                .arg(enable ? "enabled" : "disabled"));
+    } else {
+        QMessageBox::warning(m_mainWindow, "Error", 
+            QString("Failed to %1 '%2'. Please ensure you're running as Administrator.")
+                .arg(enable ? "enable" : "disable")
+                .arg(programName));
     }
-
+    
     return success;
 }
 
 bool StartupManager::changeRegistryStartupState(const QString &programName, const QString &registryPath, bool enable)
 {
     QSettings registry(registryPath, QSettings::NativeFormat);
-
-    if (enable)
-    {
-        // Try to restore from the disabled backup
-        QSettings disabledRegistry(registryPath + "Disabled", QSettings::NativeFormat);
-        if (disabledRegistry.contains(programName))
-        {
-            QString originalValue = disabledRegistry.value(programName).toString();
+    
+    if (enable) {
+        // ENABLE: Task Manager moves entries from "Disabled" back to main
+        QSettings disabledReg(registryPath + "Disabled", QSettings::NativeFormat);
+        if (disabledReg.contains(programName)) {
+            QString originalValue = disabledReg.value(programName).toString();
             registry.setValue(programName, originalValue);
-            disabledRegistry.remove(programName);
-            bool success = (registry.status() == QSettings::NoError);
-
-            if (success)
-            {
-                qDebug() << "Enabled registry startup:" << programName;
-            }
-            return success;
-        }
-        else
-        {
-            QMessageBox::warning(m_mainWindow, "Error",
-                                 QString("Cannot enable '%1' - no backup found in disabled registry.").arg(programName));
+            disabledReg.remove(programName);
+            qDebug() << "Enabled by moving from Disabled key:" << programName;
+            return true;
+        } else {
+            QMessageBox::warning(m_mainWindow, "Error", 
+                QString("Cannot enable '%1' - not found in disabled registry.").arg(programName));
             return false;
         }
-    }
-    else
-    {
-        // Disable: save to backup and remove from main
-        if (registry.contains(programName))
-        {
+    } else {
+        // DISABLE: Task Manager moves entries to a "Disabled" subkey
+        if (registry.contains(programName)) {
             QString originalValue = registry.value(programName).toString();
-
-            // Save to backup location first
-            QSettings disabledRegistry(registryPath + "Disabled", QSettings::NativeFormat);
-            disabledRegistry.setValue(programName, originalValue);
-
-            // Then remove from main location
+            
+            // Move to Disabled key (this is what Task Manager does)
+            QSettings disabledReg(registryPath + "Disabled", QSettings::NativeFormat);
+            disabledReg.setValue(programName, originalValue);
+            
+            // Remove from main key
             registry.remove(programName);
-            bool success = (registry.status() == QSettings::NoError);
-
-            if (success)
-            {
-                qDebug() << "Disabled registry startup:" << programName;
-            }
-            return success;
-        }
-        else
-        {
-            QMessageBox::warning(m_mainWindow, "Error",
-                                 QString("Cannot disable '%1' - not found in registry.").arg(programName));
+            
+            qDebug() << "Disabled by moving to Disabled key:" << programName;
+            return true;
+        } else {
+            QMessageBox::warning(m_mainWindow, "Error", 
+                QString("Cannot disable '%1' - not found in registry.").arg(programName));
             return false;
         }
     }
 }
 
-bool StartupManager::changeStartupFolderState(const QString &programName, const QString &folderPath, bool enable)
+bool StartupManager::setWindowsStartupState(const QString &programName, const QString &registryPath, bool enable)
 {
+    // Windows Task Manager looks at specific registry values to determine disabled state
+    // For HKEY_CURRENT_USER, it uses a different approach than HKEY_LOCAL_MACHINE
+    
+    if (registryPath.contains("HKEY_CURRENT_USER")) {
+        return setUserStartupState(programName, enable);
+    } else if (registryPath.contains("HKEY_LOCAL_MACHINE")) {
+        return setSystemStartupState(programName, enable);
+    }
+    
+    return false;
+}
+
+bool StartupManager::setUserStartupState(const QString &programName, bool enable)
+{
+    // For current user startup, Task Manager uses the registry value itself
+    // If the value exists and is not empty, it's enabled
+    // If we want to disable but keep it visible in Task Manager, we need a different approach
+    
+    if (enable) {
+        // Restore from backup
+        QSettings backup("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunDisabled", QSettings::NativeFormat);
+        if (backup.contains(programName)) {
+            QString value = backup.value(programName).toString();
+            QSettings registry("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+            registry.setValue(programName, value);
+            backup.remove(programName);
+            return true;
+        }
+    } else {
+        // Disable by moving to backup but keep a placeholder
+        QSettings registry("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+        if (registry.contains(programName)) {
+            QString value = registry.value(programName).toString();
+            
+            // Save to backup
+            QSettings backup("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunDisabled", QSettings::NativeFormat);
+            backup.setValue(programName, value);
+            
+            // Set a special value that indicates disabled but keeps it visible
+            registry.setValue(programName, "");
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+bool StartupManager::setSystemStartupState(const QString &programName, bool enable)
+{
+    // For system-wide startup, we need to use the proper Windows method
+    // Task Manager looks at both the registry and policy settings
+    
+    if (enable) {
+        // Enable: Restore original value
+        QSettings backup("HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunDisabled", QSettings::NativeFormat);
+        if (backup.contains(programName)) {
+            QString value = backup.value(programName).toString();
+            QSettings registry("HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+            registry.setValue(programName, value);
+            backup.remove(programName);
+            return true;
+        }
+    } else {
+        // Disable: Use Windows standard method - remove from registry
+        QSettings registry("HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+        if (registry.contains(programName)) {
+            QString value = registry.value(programName).toString();
+            
+            // Save to backup
+            QSettings backup("HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunDisabled", QSettings::NativeFormat);
+            backup.setValue(programName, value);
+            
+            // Remove from registry (this is what Task Manager expects)
+            registry.remove(programName);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+
+bool StartupManager::changeStartupFolderState(const QString &programName, const QString &folderType, bool enable)
+{
+    // Get the actual folder path based on folderType
+    QString folderPath;
+    wchar_t* startupPath = nullptr;
+    
+    if (folderType == "Current User") {
+        if (SHGetKnownFolderPath(FOLDERID_Startup, 0, nullptr, &startupPath) == S_OK) {
+            folderPath = QString::fromWCharArray(startupPath);
+            CoTaskMemFree(startupPath);
+        }
+    } else if (folderType == "All Users") {
+        if (SHGetKnownFolderPath(FOLDERID_CommonStartup, 0, nullptr, &startupPath) == S_OK) {
+            folderPath = QString::fromWCharArray(startupPath);
+            CoTaskMemFree(startupPath);
+        }
+    }
+    
+    if (folderPath.isEmpty()) {
+        qDebug() << "Could not find startup folder path for:" << folderType;
+        return false;
+    }
+    
     QDir startupFolder(folderPath);
-    if (!startupFolder.exists())
-    {
+    if (!startupFolder.exists()) {
         qDebug() << "Startup folder doesn't exist:" << folderPath;
         return false;
     }
 
     QDir disabledFolder(startupFolder.absolutePath() + "/Disabled");
-    if (!disabledFolder.exists())
-    {
-        if (!disabledFolder.mkpath("."))
-        {
-            qDebug() << "Failed to create disabled folder:" << disabledFolder.absolutePath();
+    
+    if (enable) {
+        // Enable: Move from disabled folder back to startup folder
+        if (!disabledFolder.exists()) {
+            qDebug() << "No disabled folder found for enabling:" << programName;
             return false;
         }
-    }
-
-    if (enable)
-    {
-        // Enable: move from disabled folder back to startup folder
+        
         QFileInfoList disabledEntries = disabledFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
-        for (const QFileInfo &entry : disabledEntries)
-        {
-            if (entry.baseName().compare(programName, Qt::CaseInsensitive) == 0)
-            {
+        for (const QFileInfo &entry : disabledEntries) {
+            if (entry.baseName().compare(programName, Qt::CaseInsensitive) == 0) {
                 QString newPath = startupFolder.absolutePath() + "/" + entry.fileName();
                 bool success = QFile::rename(entry.absoluteFilePath(), newPath);
-                if (success)
-                {
-                    qDebug() << "Enabled startup folder item:" << programName;
-                }
-                else
-                {
-                    qDebug() << "Failed to enable startup folder item:" << programName;
-                }
+                qDebug() << "Enabled startup folder item:" << programName << "Success:" << success;
                 return success;
             }
         }
         qDebug() << "Program not found in disabled folder:" << programName;
         return false;
-    }
-    else
-    {
-        // Disable: move from startup folder to disabled folder
+        
+    } else {
+        // Disable: Move from startup folder to disabled folder
+        if (!disabledFolder.exists()) {
+            if (!disabledFolder.mkpath(".")) {
+                qDebug() << "Failed to create disabled folder";
+                return false;
+            }
+        }
+        
         QFileInfoList entries = startupFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
-        for (const QFileInfo &entry : entries)
-        {
-            if (entry.baseName().compare(programName, Qt::CaseInsensitive) == 0)
-            {
+        for (const QFileInfo &entry : entries) {
+            if (entry.baseName().compare(programName, Qt::CaseInsensitive) == 0) {
                 QString newPath = disabledFolder.absolutePath() + "/" + entry.fileName();
                 bool success = QFile::rename(entry.absoluteFilePath(), newPath);
-                if (success)
-                {
-                    qDebug() << "Disabled startup folder item:" << programName;
-                }
-                else
-                {
-                    qDebug() << "Failed to disable startup folder item:" << programName;
-                }
+                qDebug() << "Disabled startup folder item:" << programName << "Success:" << success;
                 return success;
             }
         }
@@ -978,4 +1091,36 @@ double StartupManager::calculateBootImpact()
     }
 
     return totalImpact;
+}
+
+
+void StartupManager::debugActualRegistryState()
+{
+    qDebug() << "=== ACTUAL REGISTRY STATE ===";
+    
+    // Check HKEY_CURRENT_USER
+    QSettings hkcuRun("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+    QStringList hkcuKeys = hkcuRun.childKeys();
+    qDebug() << "HKCU Run (" << hkcuKeys.size() << "items):";
+    for (const QString &key : hkcuKeys) {
+        QString value = hkcuRun.value(key).toString();
+        qDebug() << "  " << key << "=" << value;
+    }
+    
+    // Check HKEY_LOCAL_MACHINE  
+    QSettings hklmRun("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
+    QStringList hklmKeys = hklmRun.childKeys();
+    qDebug() << "HKLM Run (" << hklmKeys.size() << "items):";
+    for (const QString &key : hklmKeys) {
+        QString value = hklmRun.value(key).toString();
+        qDebug() << "  " << key << "=" << value;
+    }
+    
+    // Check Disabled keys
+    QSettings hkcuDisabled("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunDisabled", QSettings::NativeFormat);
+    QSettings hklmDisabled("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunDisabled", QSettings::NativeFormat);
+    
+    qDebug() << "HKCU Disabled:" << hkcuDisabled.childKeys();
+    qDebug() << "HKLM Disabled:" << hklmDisabled.childKeys();
+    qDebug() << "=== END REGISTRY STATE ===";
 }

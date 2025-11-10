@@ -10,10 +10,11 @@
 
 class MainWindow;
 
-struct StartupProgram {
+struct StartupProgram
+{
     QString name;
-    QString status; // "Enabled" or "Disabled"
-    QString impact; // "High", "Medium", "Low"
+    QString status;      // "Enabled" or "Disabled"
+    QString impact;      // "High", "Medium", "Low"
     QString startupType; // "Registry", "Startup Folder", "Service", "Scheduled Task"
     QString command;
     QString location;
@@ -50,8 +51,8 @@ private:
     bool changeStartupProgramState(const QString &programName, const QString &location, const QString &startupType, bool enable);
     double calculateBootImpact();
 
-    void scanRegistryStartup(QList<StartupProgram> &programs, const QString &registryPath, 
-                           const QString &startupType, const QString &location);
+    void scanRegistryStartup(QList<StartupProgram> &programs, const QString &registryPath,
+                             const QString &startupType, const QString &location);
     void scanStartupFolders(QList<StartupProgram> &programs);
     void scanStartupFolder(QList<StartupProgram> &programs, QDir &startupFolder, const QString &startupType, const QString &location);
     void scanServices(QList<StartupProgram> &programs);
@@ -60,14 +61,24 @@ private:
     void removeDuplicates(QList<StartupProgram> &programs);
     void sortProgramsByName(QList<StartupProgram> &programs);
 
+    bool isProgramEnabledInTaskManager(const QString &programName, const QString &registryPath, const QString &value);
+
+
+    void debugActualRegistryState();
+
+
     // Real implementation methods for changing startup states
     bool changeRegistryStartupState(const QString &programName, const QString &registryPath, bool enable);
     bool changeStartupFolderState(const QString &programName, const QString &folderPath, bool enable);
     bool changeServiceState(const QString &programName, bool enable);
     bool changeScheduledTaskState(const QString &programName, bool enable);
-    
+    bool shouldSkipProgram(const QString &name, const QString &command);
     // Helper method for service filtering
     bool isUserService(const QString &serviceName);
+
+    bool setWindowsStartupState(const QString &programName, const QString &registryPath, bool enable);
+    bool setUserStartupState(const QString &programName, bool enable);
+    bool setSystemStartupState(const QString &programName, bool enable);
 };
 
 #endif // STARTUPMANAGER_H
