@@ -2472,7 +2472,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Windows 11 Pro</string>
+                                                                                    <string></string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2510,7 +2510,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Intel Core i7-12700K</string>
+                                                                                    <string></string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2548,7 +2548,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>32 GB</string>
+                                                                                    <string></string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2584,9 +2584,8 @@
                                                                                         #34495e;
                                                                                         }</string>
                                                                                 </property>
-                                                                                <property
-                                                                                    name="text">
-                                                                                    <string>1 TB SSD (Free: 650 GB)</string>
+                                                                                <property name="text">
+                                                                                    <string></string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -2624,7 +2623,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>NVIDIA RTX 4070</string>
+                                                                                    <string></string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>

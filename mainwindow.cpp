@@ -1175,7 +1175,7 @@ void MainWindow::onSystemInfoUpdated(const QString &osInfo, const QString &cpuIn
     ui->osValueLabel->setText(osInfo);
     ui->cpuValueLabel->setText(cpuInfo);
     ui->ramValueLabel->setText(ramInfo);
-    ui->storageValueLabel->setText(QString("%1 (%2)").arg(storageInfo));
+    ui->storageValueLabel->setText(QString("%1").arg(storageInfo));
     ui->gpuValueLabel->setText(gpuInfo);
 }
 

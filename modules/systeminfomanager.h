@@ -24,13 +24,17 @@ public:
     void generateSystemReport();
 
 signals:
-    void systemInfoUpdated(const QString &osInfo, const QString &cpuInfo, const QString &ramInfo, 
-                          const QString &storageInfo, const QString &gpuInfo);
+    void systemInfoUpdated(const QString &osInfo, const QString &cpuInfo, const QString &ramInfo,
+                           const QString &storageInfo, const QString &gpuInfo);
     void performanceUpdated(int cpuUsage, int ramUsage, int diskUsage);
     void updateFinished(bool success, const QString &message);
 
 private:
-    struct SystemSpecs {
+    QString getOSInfoFromRegistry();
+    QString getDisplayVersion();
+    QString getBuildNumber();
+    struct SystemSpecs
+    {
         QString osName;
         QString osVersion;
         QString cpuName;
@@ -47,12 +51,12 @@ private:
     QTimer *m_monitorTimer;
     QFutureWatcher<SystemSpecs> *m_specsWatcher;
     bool m_isMonitoring;
-    
+
     // For CPU usage calculation
     ULARGE_INTEGER m_lastIdleTime;
     ULARGE_INTEGER m_lastKernelTime;
     ULARGE_INTEGER m_lastUserTime;
-    
+
     SystemSpecs getSystemSpecs();
     void updatePerformanceMetrics();
     int getCPUUsage();
@@ -63,6 +67,8 @@ private:
     QString getRamSpeed();
     QString getBootDriveInfo();
     bool isWindows11();
+    
+    bool m_initialLoadDone; 
 
 private slots:
     void onSpecsScanFinished();
