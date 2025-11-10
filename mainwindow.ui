@@ -4004,28 +4004,22 @@
                                                                     </property>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>📡 Intel(R)
-                                                                                Wi-Fi 6 AX201 160MHz</string>
+                                                                            <string>📡 Intel(R) Wi-Fi 6 AX201 160MHz</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>🔵 Bluetooth
-                                                                                Network Connection</string>
+                                                                            <string>🔵 Bluetooth Network Connection</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>🔌 Realtek PCIe
-                                                                                GbE Family
-                                                                                Controller</string>
+                                                                            <string>🔌 Realtek PCIe GbE Family Controller</string>
                                                                         </property>
                                                                     </item>
                                                                     <item>
                                                                         <property name="text">
-                                                                            <string>🌐 Microsoft
-                                                                                Wi-Fi Direct Virtual
-                                                                                Adapter</string>
+                                                                            <string>🌐 Microsoft Wi-Fi Direct Virtual Adapter</string>
                                                                         </property>
                                                                     </item>
                                                                 </widget>
@@ -4241,8 +4235,7 @@
                                                                                     }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Enable
-                                                                                    Adapter</string>
+                                                                                <string>Enable Adapter</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
@@ -4274,8 +4267,7 @@
                                                                                     }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Disable
-                                                                                    Adapter</string>
+                                                                                <string>Disable Adapter</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
@@ -4307,8 +4299,7 @@
                                                                                     }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Refresh
-                                                                                    Adapters</string>
+                                                                                <string>Refresh Adapters</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
@@ -4357,11 +4348,7 @@
                                                                             }</string>
                                                                     </property>
                                                                     <property name="text">
-                                                                        <string>Diagnose and fix
-                                                                            common WiFi connectivity
-                                                                            issues. Run network
-                                                                            diagnostics and reset
-                                                                            adapters.</string>
+                                                                        <string>Diagnose and fix common WiFi connectivity issues. Run network diagnostics and reset adapters.</string>
                                                                     </property>
                                                                     <property name="alignment">
                                                                         <set>Qt::AlignCenter</set>

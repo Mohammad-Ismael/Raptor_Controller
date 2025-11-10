@@ -1,4 +1,3 @@
-
 #include "startupmanager.h"
 #include "../mainwindow.h"
 #include "../ui_mainwindow.h"
@@ -9,8 +8,16 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QProcess>
+#include <QRegularExpression>
 #include <windows.h>
 #include <tlhelp32.h>
+#include <wincrypt.h>
+#include <psapi.h>
+#include <shlobj.h>
+
+#pragma comment(lib, "crypt32.lib")
+#pragma comment(lib, "advapi32.lib")
+#pragma comment(lib, "shell32.lib")
 
 StartupManager::StartupManager(MainWindow *mainWindow, QObject *parent)
     : QObject(parent), m_mainWindow(mainWindow)
@@ -31,13 +38,10 @@ void StartupManager::setupConnections()
 {
     if (!m_mainWindow || !m_mainWindow->ui) return;
 
-    // Connect buttons
     connect(m_mainWindow->ui->disableStartupButton, &QPushButton::clicked,
             this, &StartupManager::onDisableButtonClicked);
     connect(m_mainWindow->ui->enableStartupButton, &QPushButton::clicked,
             this, &StartupManager::onEnableButtonClicked);
-
-    // Connect table selection changes
     connect(m_mainWindow->ui->startupTable, &QTableWidget::itemSelectionChanged,
             this, &StartupManager::onStartupTableSelectionChanged);
 }
@@ -72,6 +76,8 @@ void StartupManager::disableSelectedProgram()
     }
 
     QString programName = m_mainWindow->ui->startupTable->item(row, 0)->text();
+    QString location = m_startupPrograms[row].location;
+    QString startupType = m_startupPrograms[row].startupType;
 
     QMessageBox::StandardButton reply = QMessageBox::question(
         m_mainWindow,
@@ -81,18 +87,8 @@ void StartupManager::disableSelectedProgram()
         );
 
     if (reply == QMessageBox::Yes) {
-        if (changeStartupProgramState(programName, false)) {
-            // Update the table
-            for (auto &program : m_startupPrograms) {
-                if (program.name == programName) {
-                    program.status = "Disabled";
-                    program.isEnabled = false;
-                    break;
-                }
-            }
-            populateTable();
-            updateImpactLabel();
-
+        if (changeStartupProgramState(programName, location, startupType, false)) {
+            refreshStartupPrograms();
             QMessageBox::information(m_mainWindow, "Success",
                                      QString("'%1' has been disabled from startup.").arg(programName));
         } else {
@@ -113,6 +109,8 @@ void StartupManager::enableSelectedProgram()
     }
 
     QString programName = m_mainWindow->ui->startupTable->item(row, 0)->text();
+    QString location = m_startupPrograms[row].location;
+    QString startupType = m_startupPrograms[row].startupType;
 
     QMessageBox::StandardButton reply = QMessageBox::question(
         m_mainWindow,
@@ -122,18 +120,8 @@ void StartupManager::enableSelectedProgram()
         );
 
     if (reply == QMessageBox::Yes) {
-        if (changeStartupProgramState(programName, true)) {
-            // Update the table
-            for (auto &program : m_startupPrograms) {
-                if (program.name == programName) {
-                    program.status = "Enabled";
-                    program.isEnabled = true;
-                    break;
-                }
-            }
-            populateTable();
-            updateImpactLabel();
-
+        if (changeStartupProgramState(programName, location, startupType, true)) {
+            refreshStartupPrograms();
             QMessageBox::information(m_mainWindow, "Success",
                                      QString("'%1' has been enabled for startup.").arg(programName));
         } else {
@@ -164,30 +152,32 @@ void StartupManager::populateTable()
 
         // Program Name
         QTableWidgetItem *nameItem = new QTableWidgetItem(program.name);
+        nameItem->setToolTip(program.command);
         table->setItem(row, 0, nameItem);
 
         // Status
         QTableWidgetItem *statusItem = new QTableWidgetItem(program.status);
         if (program.status == "Enabled") {
-            statusItem->setForeground(QBrush(QColor("#2ecc71"))); // Green
+            statusItem->setForeground(QBrush(QColor("#2ecc71")));
         } else {
-            statusItem->setForeground(QBrush(QColor("#e74c3c"))); // Red
+            statusItem->setForeground(QBrush(QColor("#e74c3c")));
         }
         table->setItem(row, 1, statusItem);
 
         // Impact
         QTableWidgetItem *impactItem = new QTableWidgetItem(program.impact);
         if (program.impact == "High") {
-            impactItem->setForeground(QBrush(QColor("#e74c3c"))); // Red
+            impactItem->setForeground(QBrush(QColor("#e74c3c")));
         } else if (program.impact == "Medium") {
-            impactItem->setForeground(QBrush(QColor("#f39c12"))); // Orange
+            impactItem->setForeground(QBrush(QColor("#f39c12")));
         } else {
-            impactItem->setForeground(QBrush(QColor("#2ecc71"))); // Green
+            impactItem->setForeground(QBrush(QColor("#2ecc71")));
         }
         table->setItem(row, 2, impactItem);
 
         // Startup Type
         QTableWidgetItem *typeItem = new QTableWidgetItem(program.startupType);
+        typeItem->setToolTip(program.location);
         table->setItem(row, 3, typeItem);
     }
 
@@ -245,32 +235,24 @@ QList<StartupProgram> StartupManager::getRealStartupPrograms()
 {
     QList<StartupProgram> programs;
 
-    // 1. Scan Registry Run keys (Current User)
+    // Scan Registry locations
     scanRegistryStartup(programs, "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "Registry", "Current User");
-    
-    // 2. Scan Registry Run keys (Local Machine)
     scanRegistryStartup(programs, "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", "Registry", "Local Machine");
+    scanRegistryStartup(programs, "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run", "Registry", "WOW6432Node");
     
-    // 3. Scan Registry RunOnce keys
+    // Scan RunOnce keys
     scanRegistryStartup(programs, "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce", "Registry", "RunOnce");
     scanRegistryStartup(programs, "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce", "Registry", "RunOnce");
     
-    // 4. Scan WOW6432Node for 32-bit apps on 64-bit systems
-    scanRegistryStartup(programs, "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run", "Registry", "WOW6432Node");
-    
-    // 5. Scan Startup folders
+    // Scan Startup folders
     scanStartupFolders(programs);
     
-    // 6. Scan Services
+    // Scan Services
     scanServices(programs);
     
-    // 7. Scan Scheduled Tasks
+    // Scan Scheduled Tasks
     scanScheduledTasks(programs);
-    
-    // 8. Scan Windows Boot Manager
-    scanBootManager(programs);
 
-    // Remove duplicates and sort by name
     removeDuplicates(programs);
     sortProgramsByName(programs);
 
@@ -285,16 +267,26 @@ void StartupManager::scanRegistryStartup(QList<StartupProgram> &programs, const 
     for (const QString &key : keys) {
         QString value = registry.value(key).toString();
         
-        // Skip empty values
         if (value.isEmpty()) continue;
+        
+        // Check if the program is actually enabled by looking for common disable patterns
+        bool isEnabled = true;
+        QString status = "Enabled";
+        
+        // Some registry entries might be disabled by having specific values or prefixes
+        if (value.contains("--disabled") || value.contains("-disable") || 
+            key.contains("(disabled)", Qt::CaseInsensitive)) {
+            isEnabled = false;
+            status = "Disabled";
+        }
         
         StartupProgram program;
         program.name = key;
-        program.status = "Enabled";
+        program.status = status;
         program.startupType = startupType;
         program.command = value;
-        program.location = location;
-        program.isEnabled = true;
+        program.location = registryPath;
+        program.isEnabled = isEnabled;
         program.impact = calculateProgramImpact(key, value);
         
         programs.append(program);
@@ -303,98 +295,174 @@ void StartupManager::scanRegistryStartup(QList<StartupProgram> &programs, const 
 
 void StartupManager::scanStartupFolders(QList<StartupProgram> &programs)
 {
-    // Common Startup folders
-    QStringList startupFolders = {
-        QDir::homePath() + "/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup",
-        "C:/ProgramData/Microsoft/Windows/Start Menu/Programs/Startup"
-    };
+    // Get actual startup folder paths
+    wchar_t* startupPath = nullptr;
     
-    for (const QString &folderPath : startupFolders) {
+    // Current User startup folder
+    if (SHGetKnownFolderPath(FOLDERID_Startup, 0, nullptr, &startupPath) == S_OK) {
+        QString folderPath = QString::fromWCharArray(startupPath);
+        CoTaskMemFree(startupPath);
+        
         QDir startupFolder(folderPath);
         if (startupFolder.exists()) {
-            QFileInfoList entries = startupFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+            scanStartupFolder(programs, startupFolder, "Startup Folder", "Current User");
+        }
+    }
+    
+    // All Users startup folder
+    if (SHGetKnownFolderPath(FOLDERID_CommonStartup, 0, nullptr, &startupPath) == S_OK) {
+        QString folderPath = QString::fromWCharArray(startupPath);
+        CoTaskMemFree(startupPath);
+        
+        QDir startupFolder(folderPath);
+        if (startupFolder.exists()) {
+            scanStartupFolder(programs, startupFolder, "Startup Folder", "All Users");
+        }
+    }
+}
+
+void StartupManager::scanStartupFolder(QList<StartupProgram> &programs, QDir &startupFolder, const QString &startupType, const QString &location)
+{
+    QFileInfoList entries = startupFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::System);
+    
+    for (const QFileInfo &entry : entries) {
+        QString suffix = entry.suffix().toLower();
+        if (suffix == "lnk" || suffix == "exe" || suffix == "bat" || suffix == "cmd") {
+            StartupProgram program;
+            program.name = entry.baseName();
+            program.status = "Enabled"; // Files in startup folder are enabled by presence
+            program.startupType = startupType;
+            program.command = entry.absoluteFilePath();
+            program.location = location;
+            program.isEnabled = true;
+            program.impact = calculateProgramImpact(program.name, program.command);
             
-            for (const QFileInfo &entry : entries) {
-                if (entry.suffix().toLower() == "lnk" || entry.suffix().toLower() == "exe") {
-                    StartupProgram program;
-                    program.name = entry.baseName();
-                    program.status = "Enabled";
-                    program.startupType = "Startup Folder";
-                    program.command = entry.absoluteFilePath();
-                    program.location = folderPath;
-                    program.isEnabled = true;
-                    program.impact = calculateProgramImpact(program.name, program.command);
-                    
-                    programs.append(program);
-                }
-            }
+            programs.append(program);
         }
     }
 }
 
 void StartupManager::scanServices(QList<StartupProgram> &programs)
 {
-    // Common services that run at startup
-    QStringList commonServices = {
-        "OneDrive", "AdobeARM", "GoogleUpdate", "Spotify", "Discord",
-        "Steam Client", "iCloud", "Dropbox", "Microsoft Edge"
-    };
-    
-    for (const QString &serviceName : commonServices) {
-        StartupProgram program;
-        program.name = serviceName + " Service";
-        program.status = "Enabled";
-        program.startupType = "Service";
-        program.command = "";
-        program.location = "Services";
-        program.isEnabled = true;
-        program.impact = "Low";
-        
-        programs.append(program);
-    }
-}
+    SC_HANDLE scManager = OpenSCManager(nullptr, nullptr, SC_MANAGER_ENUMERATE_SERVICE);
+    if (!scManager) return;
 
+    DWORD bytesNeeded = 0;
+    DWORD serviceCount = 0;
+    DWORD resumeHandle = 0;
+
+    // First call to get required buffer size
+    EnumServicesStatusEx(
+        scManager,
+        SC_ENUM_PROCESS_INFO,
+        SERVICE_WIN32,
+        SERVICE_STATE_ALL,
+        nullptr,
+        0,
+        &bytesNeeded,
+        &serviceCount,
+        &resumeHandle,
+        nullptr
+    );
+
+    if (GetLastError() != ERROR_MORE_DATA) {
+        CloseServiceHandle(scManager);
+        return;
+    }
+
+    BYTE* buffer = new BYTE[bytesNeeded];
+    ENUM_SERVICE_STATUS_PROCESS* services = reinterpret_cast<ENUM_SERVICE_STATUS_PROCESS*>(buffer);
+
+    if (EnumServicesStatusEx(
+        scManager,
+        SC_ENUM_PROCESS_INFO,
+        SERVICE_WIN32,
+        SERVICE_STATE_ALL,
+        buffer,
+        bytesNeeded,
+        &bytesNeeded,
+        &serviceCount,
+        &resumeHandle,
+        nullptr
+    )) {
+        for (DWORD i = 0; i < serviceCount; i++) {
+            ENUM_SERVICE_STATUS_PROCESS& service = services[i];
+            
+            // Open service to query configuration
+            SC_HANDLE hService = OpenService(scManager, service.lpServiceName, SERVICE_QUERY_CONFIG);
+            if (hService) {
+                DWORD bytesNeededConfig = 0;
+                QueryServiceConfig(hService, nullptr, 0, &bytesNeededConfig);
+                
+                if (bytesNeededConfig > 0) {
+                    BYTE* configBuffer = new BYTE[bytesNeededConfig];
+                    QUERY_SERVICE_CONFIG* serviceConfig = reinterpret_cast<QUERY_SERVICE_CONFIG*>(configBuffer);
+                    
+                    if (QueryServiceConfig(hService, serviceConfig, bytesNeededConfig, &bytesNeededConfig)) {
+                        // Check if service starts automatically
+                        if (serviceConfig->dwStartType == SERVICE_AUTO_START) {
+                            StartupProgram program;
+                            program.name = QString::fromWCharArray(service.lpDisplayName);
+                            program.status = "Enabled";
+                            program.startupType = "Service";
+                            program.command = QString::fromWCharArray(service.lpServiceName);
+                            program.location = "Services";
+                            program.isEnabled = true;
+                            program.impact = calculateProgramImpact(program.name, program.command);
+                            
+                            programs.append(program);
+                        }
+                    }
+                    
+                    delete[] configBuffer;
+                }
+                CloseServiceHandle(hService);
+            }
+        }
+    }
+
+    delete[] buffer;
+    CloseServiceHandle(scManager);
+}
 
 void StartupManager::scanScheduledTasks(QList<StartupProgram> &programs)
 {
-    // Common scheduled tasks
-    QStringList commonTasks = {
-        "GoogleUpdateTask", "Adobe Acrobat Update", "Microsoft Office",
-        "Java Update", "NVIDIA Driver", "OneDrive Standalone Update"
-    };
+    // Use schtasks command to get scheduled tasks
+    QProcess process;
+    process.start("schtasks", QStringList() << "/query" << "/fo" << "csv" << "/nh");
+    process.waitForFinished();
     
-    for (const QString &taskName : commonTasks) {
-        StartupProgram program;
-        program.name = taskName + " Task";
-        program.status = "Enabled";
-        program.startupType = "Scheduled Task";
-        program.command = "";
-        program.location = "Task Scheduler";
-        program.isEnabled = true;
-        program.impact = "Low";
-        
-        programs.append(program);
-    }
-}
-
-void StartupManager::scanBootManager(QList<StartupProgram> &programs)
-{
-    // Boot manager entries
-    QStringList bootEntries = {
-        "Windows Boot Manager", "Windows Memory Diagnostic"
-    };
+    QString output = process.readAllStandardOutput();
+    QStringList lines = output.split('\n', Qt::SkipEmptyParts);
     
-    for (const QString &bootEntry : bootEntries) {
-        StartupProgram program;
-        program.name = bootEntry;
-        program.status = "Enabled";
-        program.startupType = "Boot Manager";
-        program.command = "";
-        program.location = "Boot Configuration";
-        program.isEnabled = true;
-        program.impact = "High";
-        
-        programs.append(program);
+    for (const QString &line : lines) {
+        QStringList fields = line.split(',');
+        if (fields.size() >= 2) {
+            QString taskName = fields[0].trimmed();
+            if (taskName.startsWith('"') && taskName.endsWith('"')) {
+                taskName = taskName.mid(1, taskName.length() - 2);
+            }
+            
+            QString status = fields.size() > 2 ? fields[2].trimmed() : "";
+            
+            // Look for tasks that run at startup or logon
+            if (taskName.contains("Startup", Qt::CaseInsensitive) || 
+                taskName.contains("Logon", Qt::CaseInsensitive) ||
+                taskName.contains("AtStartup", Qt::CaseInsensitive) ||
+                taskName.contains("AtLogon", Qt::CaseInsensitive)) {
+                
+                StartupProgram program;
+                program.name = taskName;
+                program.status = (status == "Disabled") ? "Disabled" : "Enabled";
+                program.startupType = "Scheduled Task";
+                program.command = "";
+                program.location = "Task Scheduler";
+                program.isEnabled = (status != "Disabled");
+                program.impact = "Low";
+                
+                programs.append(program);
+            }
+        }
     }
 }
 
@@ -403,7 +471,7 @@ QString StartupManager::calculateProgramImpact(const QString &programName, const
     QString lowerName = programName.toLower();
     QString lowerCommand = command.toLower();
     
-    // High impact programs (resource-intensive)
+    // High impact programs
     if (lowerName.contains("adobe") || lowerCommand.contains("adobe") ||
         lowerName.contains("creative") || lowerCommand.contains("creative") ||
         lowerName.contains("steam") || lowerCommand.contains("steam") ||
@@ -423,7 +491,7 @@ QString StartupManager::calculateProgramImpact(const QString &programName, const
         return "Medium";
     }
     
-    // Low impact (system utilities, updaters)
+    // Low impact programs
     else if (lowerName.contains("update") || lowerCommand.contains("update") ||
              lowerName.contains("nvidia") || lowerCommand.contains("nvidia") ||
              lowerName.contains("realtek") || lowerCommand.contains("realtek") ||
@@ -432,7 +500,7 @@ QString StartupManager::calculateProgramImpact(const QString &programName, const
         return "Low";
     }
     
-    return "Medium"; // Default to medium if unknown
+    return "Medium";
 }
 
 void StartupManager::removeDuplicates(QList<StartupProgram> &programs)
@@ -441,7 +509,7 @@ void StartupManager::removeDuplicates(QList<StartupProgram> &programs)
     QSet<QString> seenNames;
     
     for (const StartupProgram &program : programs) {
-        QString key = program.name.toLower() + "|" + program.startupType.toLower();
+        QString key = program.name.toLower() + "|" + program.startupType.toLower() + "|" + program.location;
         if (!seenNames.contains(key)) {
             seenNames.insert(key);
             uniquePrograms.append(program);
@@ -459,33 +527,117 @@ void StartupManager::sortProgramsByName(QList<StartupProgram> &programs)
               });
 }
 
-bool StartupManager::changeStartupProgramState(const QString &programName, bool enable)
+bool StartupManager::changeStartupProgramState(const QString &programName, const QString &location, const QString &startupType, bool enable)
 {
-    // For demo purposes, we'll simulate the state change
-    // In a real implementation, you would modify the actual registry entries
+    if (startupType == "Registry") {
+        return changeRegistryStartupState(programName, location, enable);
+    } else if (startupType == "Startup Folder") {
+        return changeStartupFolderState(programName, location, enable);
+    } else if (startupType == "Service") {
+        return changeServiceState(programName, enable);
+    } else if (startupType == "Scheduled Task") {
+        return changeScheduledTaskState(programName, enable);
+    }
     
-    QMessageBox::information(m_mainWindow, "Info", 
-        QString("This would %1 '%2' in a real implementation.\n\nRun as Administrator for full functionality.")
-            .arg(enable ? "enable" : "disable")
-            .arg(programName));
-    
-    // Simulate success for demo
-    return true;
-    
-    /*
-    // Real implementation would look like this:
-    QSettings registry("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", 
-                       QSettings::NativeFormat);
+    return false;
+}
+
+bool StartupManager::changeRegistryStartupState(const QString &programName, const QString &registryPath, bool enable)
+{
+    QSettings registry(registryPath, QSettings::NativeFormat);
     
     if (enable) {
-        // You would need to store the original command and restore it
-        // registry.setValue(programName, originalCommand);
-        return true;
+        // To enable, we would need to restore the original command
+        // This is complex without storing the original values
+        QMessageBox::information(m_mainWindow, "Info", 
+            "Registry enabling requires storing original commands. This feature needs additional implementation.");
+        return false;
     } else {
+        // Disable by removing the registry entry
         registry.remove(programName);
         return registry.status() == QSettings::NoError;
     }
-    */
+}
+
+bool StartupManager::changeStartupFolderState(const QString &programName, const QString &folderPath, bool enable)
+{
+    QDir startupFolder(folderPath);
+    if (!startupFolder.exists()) return false;
+
+    // Look for the file
+    QFileInfoList entries = startupFolder.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+    for (const QFileInfo &entry : entries) {
+        if (entry.baseName() == programName) {
+            if (enable) {
+                // File is already there, so it's enabled
+                return true;
+            } else {
+                // Disable by moving to disabled folder or deleting
+                QString disabledPath = startupFolder.absolutePath() + "/Disabled";
+                QDir disabledDir(disabledPath);
+                if (!disabledDir.exists()) {
+                    disabledDir.mkpath(".");
+                }
+                
+                QString newPath = disabledPath + "/" + entry.fileName();
+                return QFile::rename(entry.absoluteFilePath(), newPath);
+            }
+        }
+    }
+    
+    return false;
+}
+
+bool StartupManager::changeServiceState(const QString &programName, bool enable)
+{
+    SC_HANDLE scManager = OpenSCManager(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
+    if (!scManager) return false;
+
+    // Extract service name from display name (create a non-const copy)
+    QString serviceName = programName;
+    if (programName.contains("Service")) {
+        serviceName = programName;
+        serviceName.replace(" Service", "");
+    }
+
+    SC_HANDLE service = OpenService(scManager, serviceName.toStdWString().c_str(), SERVICE_CHANGE_CONFIG);
+    if (!service) {
+        CloseServiceHandle(scManager);
+        return false;
+    }
+
+    DWORD startType = enable ? SERVICE_AUTO_START : SERVICE_DISABLED;
+    BOOL success = ChangeServiceConfig(
+        service,
+        SERVICE_NO_CHANGE,
+        startType,
+        SERVICE_NO_CHANGE,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    );
+
+    CloseServiceHandle(service);
+    CloseServiceHandle(scManager);
+
+    return success;
+}
+
+bool StartupManager::changeScheduledTaskState(const QString &programName, bool enable)
+{
+    QProcess process;
+    if (enable) {
+        process.start("schtasks", QStringList() << "/change" << "/tn" << programName << "/enable");
+    } else {
+        process.start("schtasks", QStringList() << "/change" << "/tn" << programName << "/disable");
+    }
+    
+    process.waitForFinished();
+    return process.exitCode() == 0;
 }
 
 double StartupManager::calculateBootImpact()

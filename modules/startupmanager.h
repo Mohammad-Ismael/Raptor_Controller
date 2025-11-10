@@ -5,6 +5,7 @@
 #include <QTableWidget>
 #include <QPushButton>
 #include <QLabel>
+#include <QDir>
 #include <QList>
 
 class MainWindow;
@@ -46,20 +47,24 @@ private:
     void updateButtonStates();
     void updateImpactLabel();
     QList<StartupProgram> getRealStartupPrograms();
-    bool changeStartupProgramState(const QString &programName, bool enable);
+    bool changeStartupProgramState(const QString &programName, const QString &location, const QString &startupType, bool enable);
     double calculateBootImpact();
 
     void scanRegistryStartup(QList<StartupProgram> &programs, const QString &registryPath, 
                            const QString &startupType, const QString &location);
     void scanStartupFolders(QList<StartupProgram> &programs);
+    void scanStartupFolder(QList<StartupProgram> &programs, QDir &startupFolder, const QString &startupType, const QString &location);
     void scanServices(QList<StartupProgram> &programs);
     void scanScheduledTasks(QList<StartupProgram> &programs);
-    void scanBootManager(QList<StartupProgram> &programs);
     QString calculateProgramImpact(const QString &programName, const QString &command);
     void removeDuplicates(QList<StartupProgram> &programs);
     void sortProgramsByName(QList<StartupProgram> &programs);
 
-
+    // Real implementation methods for changing startup states
+    bool changeRegistryStartupState(const QString &programName, const QString &registryPath, bool enable);
+    bool changeStartupFolderState(const QString &programName, const QString &folderPath, bool enable);
+    bool changeServiceState(const QString &programName, bool enable);
+    bool changeScheduledTaskState(const QString &programName, bool enable);
 };
 
 #endif // STARTUPMANAGER_H
