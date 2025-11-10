@@ -5,8 +5,8 @@
 #include <QTableWidget>
 #include <QPushButton>
 #include <QLabel>
-#include <QDir>
 #include <QList>
+#include <QDir>
 
 class MainWindow;
 
@@ -65,6 +65,9 @@ private:
     bool changeStartupFolderState(const QString &programName, const QString &folderPath, bool enable);
     bool changeServiceState(const QString &programName, bool enable);
     bool changeScheduledTaskState(const QString &programName, bool enable);
+    
+    // Helper method for service filtering
+    bool isUserService(const QString &serviceName);
 };
 
 #endif // STARTUPMANAGER_H

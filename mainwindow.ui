@@ -3965,11 +3965,7 @@
                                                                             }</string>
                                                                     </property>
                                                                     <property name="text">
-                                                                        <string>Manage network
-                                                                            adapters and their
-                                                                            properties.
-                                                                            Enable/disable adapters
-                                                                            and configure settings.</string>
+                                                                        <string>Manage network adapters and their properties. Enable/disable adapters and configure settings.</string>
                                                                     </property>
                                                                     <property name="alignment">
                                                                         <set>Qt::AlignCenter</set>
@@ -4048,8 +4044,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Adapter
-                                                                                        Name:</string>
+                                                                                    <string>Adapter Name:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -4067,9 +4062,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Intel(R)
-                                                                                        Wi-Fi 6
-                                                                                        AX201 160MHz</string>
+                                                                                    <string>Intel(R) Wi-Fi 6 AX201 160MHz</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -4129,8 +4122,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Driver
-                                                                                        Version:</string>
+                                                                                    <string>Driver Version:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -4148,8 +4140,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>
-                                                                                        22.190.0.4</string>
+                                                                                    <string>22.190.0.4</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -4169,8 +4160,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>MAC
-                                                                                        Address:</string>
+                                                                                    <string>MAC Address:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -4188,8 +4178,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>
-                                                                                        AA:BB:CC:DD:EE:FF</string>
+                                                                                    <string>AA:BB:CC:DD:EE:FF</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -4472,9 +4461,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>
-                                                                                                Run
-                                                                                                Diagnostics</string>
+                                                                                            <string>Run Diagnostics</string>
                                                                                         </property>
                                                                                     </widget>
                                                                                 </item>
@@ -4514,10 +4501,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>
-                                                                                                Reset
-                                                                                                Network
-                                                                                                Stack</string>
+                                                                                            <string>Reset Network Stack</string>
                                                                                         </property>
                                                                                     </widget>
                                                                                 </item>
@@ -4557,8 +4541,7 @@
                                                                                         </property>
                                                                                         <property
                                                                                             name="text">
-                                                                                            <string>Flush
-                                                                                                DNS</string>
+                                                                                            <string>Flush DNS</string>
                                                                                         </property>
                                                                                     </widget>
                                                                                 </item>
