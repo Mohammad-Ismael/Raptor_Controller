@@ -93,7 +93,6 @@ private slots:
 
     // General tab slots
     void on_refreshSystemInfoButton_clicked();
-    void on_generateReportButton_clicked();
     void on_disableStartupButton_clicked();
     void on_enableStartupButton_clicked();
     void on_startupTable_itemSelectionChanged();

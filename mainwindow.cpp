@@ -61,14 +61,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->cancelLargeFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelLargeFilesButton_clicked);
     connect(ui->cancelDuplicateFilesButton, &QPushButton::clicked, this, &MainWindow::on_cancelDuplicateFilesButton_clicked);
 
-    // In MainWindow constructor, add:
-    connect(ui->appsButton, &QPushButton::clicked, this, [this]()
-            {
-    if (ui->contentStackedWidget->currentWidget() == ui->appsPage) {
-        // Auto-refresh software list when software tab is opened
-        on_scanSoftwareButton_clicked();
-    } });
-
     connect(m_softwareManager, &SoftwareManager::scanProgressUpdated, this, [this](int progress, const QString &status)
             {
     ui->selectedSoftwareInfo->setText(status);
@@ -111,13 +103,6 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::onPerformanceUpdated);
     connect(m_systemInfoManager, &SystemInfoManager::updateFinished,
             this, &MainWindow::onSystemInfoUpdateFinished);
-
-    // Auto-refresh when general tab is opened
-    connect(ui->generalButton, &QPushButton::clicked, this, [this]()
-            {
-    if (ui->contentStackedWidget->currentWidget() == ui->generalPage) {
-        on_refreshSystemInfoButton_clicked();
-    } });
 }
 
 // Add this new slot to MainWindow class (add declaration to mainwindow.h too)
@@ -272,10 +257,6 @@ void MainWindow::on_generalButton_clicked()
     updateContent("General Settings");
     ui->contentStackedWidget->setCurrentWidget(ui->generalPage);
 
-    // Auto-refresh system info when tab is opened
-    if (ui->systemInfoTab->isVisible()) {
-        on_refreshSystemInfoButton_clicked();
-    }
 
     // Keep your existing startup programs population
     if (ui->startupTable->rowCount() == 0) {
@@ -1203,10 +1184,4 @@ void MainWindow::onSystemInfoUpdateFinished(bool success, const QString &message
 void MainWindow::on_refreshSystemInfoButton_clicked()
 {
     m_systemInfoManager->refreshSystemInfo();
-}
-
-// Update the existing generate report method  
-void MainWindow::on_generateReportButton_clicked()
-{
-    m_systemInfoManager->generateSystemReport();
 }

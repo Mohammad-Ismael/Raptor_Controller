@@ -109,18 +109,13 @@ void SystemInfoManager::onSpecsScanFinished()
             ramInfo += " " + specs.ramSpeed;
         }
 
-        // TEMPORARY FIX: Remove any placeholder formatting
-        QString cleanStorage = specs.storageTotal;
-        cleanStorage.remove("(%2)");
-        cleanStorage.remove("%2");
-
-        qDebug() << "Cleaned storage:" << cleanStorage;
-
-        emit systemInfoUpdated(specs.osName,
-                               specs.cpuName + " " + specs.cpuCores,
-                               ramInfo,
-                               cleanStorage, // Use cleaned version
-                               gpuInfo);
+        // FIX: Only use storageTotal which already contains the free space info
+        // Remove the extra concatenation that was causing "() (%2)"
+        emit systemInfoUpdated(specs.osName,  // osName already has the full formatted string
+                              specs.cpuName + " " + specs.cpuCores,
+                              ramInfo,
+                              specs.storageTotal,  // Use storageTotal directly, it already has free space
+                              gpuInfo);
 
         emit updateFinished(true, "✅ System information loaded successfully!");
     }
@@ -615,12 +610,4 @@ int SystemInfoManager::getDiskUsage()
     }
 
     return 0;
-}
-
-void SystemInfoManager::generateSystemReport()
-{
-    if (m_mainWindow && m_mainWindow->ui)
-    {
-        m_mainWindow->ui->systemInfoLabel->setText("📄 System report generated successfully!");
-    }
 }

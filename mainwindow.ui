@@ -2935,38 +2935,6 @@
                                                                         </widget>
                                                                     </item>
                                                                     <item>
-                                                                        <widget class="QPushButton"
-                                                                            name="generateReportButton">
-                                                                            <property name="font">
-                                                                                <font>
-                                                                                    <pointsize>9</pointsize>
-                                                                                </font>
-                                                                            </property>
-                                                                            <property
-                                                                                name="styleSheet">
-                                                                                <string notr="true">QPushButton
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #1abc9c;
-                                                                                    color: white;
-                                                                                    border: none;
-                                                                                    padding: 8px
-                                                                                    15px;
-                                                                                    border-radius:
-                                                                                    5px;
-                                                                                    }
-                                                                                    QPushButton:hover
-                                                                                    {
-                                                                                    background-color:
-                                                                                    #16a085;
-                                                                                    }</string>
-                                                                            </property>
-                                                                            <property name="text">
-                                                                                <string>Generate Report</string>
-                                                                            </property>
-                                                                        </widget>
-                                                                    </item>
-                                                                    <item>
                                                                         <spacer
                                                                             name="horizontalSpacer_3">
                                                                             <property
@@ -3304,15 +3272,13 @@
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>Dark
-                                                                                            Theme</string>
+                                                                                        <string>Dark Theme</string>
                                                                                     </property>
                                                                                 </item>
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>Light
-                                                                                            Theme</string>
+                                                                                        <string>Light Theme</string>
                                                                                     </property>
                                                                                 </item>
                                                                                 <item>
@@ -3339,8 +3305,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>
-                                                                                        Language:</string>
+                                                                                    <string>Language:</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -3369,29 +3334,25 @@
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>
-                                                                                            English</string>
+                                                                                        <string>English</string>
                                                                                     </property>
                                                                                 </item>
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>
-                                                                                            Spanish</string>
+                                                                                        <string>Spanish</string>
                                                                                     </property>
                                                                                 </item>
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>
-                                                                                            French</string>
+                                                                                        <string>French</string>
                                                                                     </property>
                                                                                 </item>
                                                                                 <item>
                                                                                     <property
                                                                                         name="text">
-                                                                                        <string>
-                                                                                            German</string>
+                                                                                        <string>German</string>
                                                                                     </property>
                                                                                 </item>
                                                                             </widget>
@@ -3422,9 +3383,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Start
-                                                                                        minimized to
-                                                                                        system tray</string>
+                                                                                    <string>Start minimized to system tray</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -3447,10 +3406,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>
-                                                                                        Check
-                                                                                        for updates
-                                                                                        automatically</string>
+                                                                                    <string>Check for updates automatically</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -3473,11 +3429,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>Create
-                                                                                        backup
-                                                                                        before
-                                                                                        system
-                                                                                        changes</string>
+                                                                                    <string>Create backup before system changes</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -3500,10 +3452,7 @@
                                                                                 </property>
                                                                                 <property
                                                                                     name="text">
-                                                                                    <string>
-                                                                                        Show
-                                                                                        desktop
-                                                                                        notifications</string>
+                                                                                    <string>Show desktop notifications</string>
                                                                                 </property>
                                                                             </widget>
                                                                         </item>
@@ -3545,8 +3494,7 @@
                                                                                     }</string>
                                                                             </property>
                                                                             <property name="text">
-                                                                                <string>Save
-                                                                                    Settings</string>
+                                                                                <string>Save Settings</string>
                                                                             </property>
                                                                         </widget>
                                                                     </item>
