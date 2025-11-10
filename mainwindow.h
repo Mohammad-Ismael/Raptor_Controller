@@ -5,11 +5,11 @@
 #include <QPushButton>
 #include <QTableWidgetItem>
 #include <QTreeWidgetItem>
-#include <QCompleter>  // Add this line
-#include <QMouseEvent> // ADD THIS
-#include <QEvent>      // ADD THIS
-#include <QMenu>       // ADD THIS LINE
-#include <QAction>     // ADD THIS LINE
+#include <QCompleter>
+#include <QMouseEvent>
+#include <QEvent>
+#include <QMenu>
+#include <QAction>
 
 // Include the actual headers instead of forward declarations
 #include "modules/systemcleaner.h"
@@ -19,7 +19,8 @@
 #include "modules/softwaremanager.h"
 #include "modules/wifimanager.h"
 #include "modules/fileschecker.h"
-#include "modules/systeminfomanager.h" // Add this include
+#include "modules/systeminfomanager.h"
+#include "modules/startupmanager.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -40,7 +41,7 @@ public:
     // Make UI accessible to modules
     Ui::MainWindow *ui;
 
-        SystemInfoManager *m_systemInfoManager;
+    SystemInfoManager *m_systemInfoManager;
 
 private slots:
 
@@ -156,6 +157,7 @@ private:
     SoftwareManager *m_softwareManager;
     WiFiManager *m_wifiManager;
     FilesChecker *m_filesChecker;
+    StartupManager *m_startupManager;
 
     void ensureOneFileKeptPerGroup(QTreeWidgetItem *groupItem);
 
@@ -172,14 +174,6 @@ private:
     void cancelAllOperations();
     void debugTableState();
     void updateDeleteButtonState();
-
-
-
-
-
-
-
-
 };
 
 #endif // MAINWINDOW_H

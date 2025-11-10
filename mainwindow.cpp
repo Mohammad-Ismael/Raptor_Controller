@@ -33,6 +33,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_softwareManager = new SoftwareManager(this, this);
     m_wifiManager = new WiFiManager(this, this);
     m_filesChecker = new FilesChecker(this, this);
+    m_startupManager = new StartupManager(this, this);
+
+    m_startupManager->initialize();
 
     // Add path suggestions for file checker
     QStringList commonPaths = m_filesChecker->getCommonPaths();
@@ -248,41 +251,12 @@ void MainWindow::showCleanerPage()
     ui->contentStackedWidget->setCurrentWidget(ui->cleanerPage);
 }
 
-// Main navigation slots
-// Update the navigation slots to cancel operations when switching tabs
 void MainWindow::on_generalButton_clicked()
 {
-   cancelAllOperations();
+    cancelAllOperations();
     setActiveButton(ui->generalButton);
     updateContent("General Settings");
     ui->contentStackedWidget->setCurrentWidget(ui->generalPage);
-
-
-    // Keep your existing startup programs population
-    if (ui->startupTable->rowCount() == 0) {
-        QStringList startupPrograms = {
-            "Microsoft OneDrive", "Spotify", "Adobe Creative Cloud",
-            "Discord", "Steam Client", "NVIDIA Control Panel",
-            "Realtek Audio", "Windows Security", "Google Update"};
-
-        QStringList impacts = {"Low", "Medium", "High", "Low", "Medium", "Low", "Low", "Low", "Low"};
-        QStringList types = {"Registry", "Startup Folder", "Service", "Registry", "Registry", "Service", "Service", "Service", "Scheduled Task"};
-
-        for (int i = 0; i < startupPrograms.size(); ++i) {
-            int row = ui->startupTable->rowCount();
-            ui->startupTable->insertRow(row);
-
-            ui->startupTable->setItem(row, 0, new QTableWidgetItem(startupPrograms[i]));
-
-            QTableWidgetItem *statusItem = new QTableWidgetItem("Enabled");
-            statusItem->setForeground(QBrush(QColor("#2ecc71")));
-            ui->startupTable->setItem(row, 1, statusItem);
-
-            ui->startupTable->setItem(row, 2, new QTableWidgetItem(impacts[i]));
-            ui->startupTable->setItem(row, 3, new QTableWidgetItem(types[i]));
-        }
-        ui->startupTable->resizeColumnsToContents();
-    }
 }
 
 void MainWindow::on_appsButton_clicked()
@@ -453,7 +427,6 @@ void MainWindow::on_searchAppsInput_textChanged(const QString &searchText)
 {
     m_appManager->searchApps(searchText);
 }
-
 
 void MainWindow::on_disableStartupButton_clicked()
 {
@@ -1137,21 +1110,9 @@ void MainWindow::on_cancelSoftwareScanButton_clicked()
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-void MainWindow::onSystemInfoUpdated(const QString &osInfo, const QString &cpuInfo, 
-                                    const QString &ramInfo, const QString &storageInfo, 
-                                    const QString &gpuInfo)
+void MainWindow::onSystemInfoUpdated(const QString &osInfo, const QString &cpuInfo,
+                                     const QString &ramInfo, const QString &storageInfo,
+                                     const QString &gpuInfo)
 {
     ui->osValueLabel->setText(osInfo);
     ui->cpuValueLabel->setText(cpuInfo);
@@ -1165,7 +1126,7 @@ void MainWindow::onPerformanceUpdated(int cpuUsage, int ramUsage, int diskUsage)
     ui->cpuUsageProgress->setValue(cpuUsage);
     ui->ramUsageProgress->setValue(ramUsage);
     ui->diskUsageProgress->setValue(diskUsage);
-    
+
     ui->cpuUsageValue->setText(QString("%1%").arg(cpuUsage));
     ui->ramUsageValue->setText(QString("%1%").arg(ramUsage));
     ui->diskUsageValue->setText(QString("%1%").arg(diskUsage));
@@ -1173,7 +1134,8 @@ void MainWindow::onPerformanceUpdated(int cpuUsage, int ramUsage, int diskUsage)
 
 void MainWindow::onSystemInfoUpdateFinished(bool success, const QString &message)
 {
-    if (success) {
+    if (success)
+    {
         // Start real-time monitoring after initial scan
         m_systemInfoManager->startRealTimeMonitoring();
     }
